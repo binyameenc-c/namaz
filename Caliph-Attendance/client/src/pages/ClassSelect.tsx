@@ -14,10 +14,6 @@ export default function ClassSelect() {
     setAttendanceData(getPrayerAttendance(type));
   }, [type]);
 
-  const refreshData = () => {
-    setAttendanceData(getPrayerAttendance(type));
-  };
-
   const shareOnWhatsApp = () => {
     const message = generatePrayerSummaryMessage(type);
     const encodedMessage = encodeURIComponent(message);
@@ -56,11 +52,29 @@ export default function ClassSelect() {
         )}
       </div>
 
+      <button 
+        onClick={shareOnWhatsApp}
+        className="w-full bg-[#25D366] text-white font-semibold py-4 rounded-2xl shadow-lg shadow-[#25D366]/25 active:scale-95 transition-all flex items-center justify-center space-x-2"
+      >
+        <Share2 size={20} />
+        <span>Share on WhatsApp</span>
+      </button>
+
       {recordedClassCount > 0 && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-          <p className="text-sm text-emerald-700 font-medium">
-            {recordedClassCount} of {CLASSES.length} classes recorded
-          </p>
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+            Summary ({recordedClassCount} of {CLASSES.length} classes)
+          </h3>
+          {Object.values(attendanceData).map((classData: any) => (
+            <div key={classData.classId} className="flex justify-between items-center py-2 border-b border-border last:border-0">
+              <span className="font-medium">{classData.className}</span>
+              <span className={classData.absentStudents.length === 0 ? "text-emerald-600" : "text-red-500"}>
+                {classData.absentStudents.length === 0 
+                  ? "All present" 
+                  : classData.absentStudents.map((s: any) => s.name).join(", ")}
+              </span>
+            </div>
+          ))}
         </div>
       )}
 
@@ -102,18 +116,6 @@ export default function ClassSelect() {
           );
         })}
       </div>
-
-      {recordedClassCount > 0 && (
-        <div className="fixed bottom-6 left-0 right-0 px-6 max-w-md mx-auto z-20">
-          <button 
-            onClick={shareOnWhatsApp}
-            className="w-full bg-[#25D366] text-white font-semibold py-4 rounded-2xl shadow-lg shadow-[#25D366]/25 active:scale-95 transition-all flex items-center justify-center space-x-2"
-          >
-            <Share2 size={20} />
-            <span>Share on WhatsApp</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }
