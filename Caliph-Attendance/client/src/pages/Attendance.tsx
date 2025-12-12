@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, Check, X, Search, Save } from "lucide-react";
+import { ArrowLeft, Check, X, Search, Save, Share2 } from "lucide-react";
 import { STUDENTS, CLASSES } from "@/lib/mockData";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -60,13 +60,48 @@ export default function Attendance() {
   };
 
   const submitAttendance = () => {
-    // In a real app, this would be an API call
     toast({
       title: "Attendance Saved",
       description: `Marked for ${classData?.name} - ${type}`,
       className: "bg-emerald-50 border-emerald-200 text-emerald-900"
     });
     setLocation("/");
+  };
+
+  const generateWhatsAppMessage = () => {
+    const presentStudents = students.filter(s => attendance[s.id] === 'present');
+    const absentStudents = students.filter(s => attendance[s.id] === 'absent');
+    
+    const today = new Date().toLocaleDateString('en-GB', { 
+      day: '2-digit', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+    
+    let message = `📿 *${type} Attendance*\n`;
+    message += `📅 ${today}\n`;
+    message += `🏫 ${classData?.name}\n\n`;
+    
+    if (presentStudents.length === students.length) {
+      message += `✅ *All Present* (${students.length} students)\n`;
+    } else {
+      message += `✅ *Present:* ${presentStudents.length}\n`;
+      
+      if (absentStudents.length > 0) {
+        message += `\n❌ *Absent:*\n`;
+        absentStudents.forEach(s => {
+          message += `${classData?.name}\n${s.name}\n`;
+        });
+      }
+    }
+    
+    return message;
+  };
+
+  const shareOnWhatsApp = () => {
+    const message = generateWhatsAppMessage();
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
   };
 
   const presentCount = Object.values(attendance).filter(s => s === 'present').length;
@@ -153,15 +188,24 @@ export default function Attendance() {
         })}
       </div>
 
-      {/* Floating Save Button */}
+      {/* Floating Action Buttons */}
       <div className="fixed bottom-6 left-0 right-0 px-6 max-w-md mx-auto z-20">
-        <button 
-          onClick={submitAttendance}
-          className="w-full bg-primary text-primary-foreground font-semibold py-4 rounded-2xl shadow-lg shadow-primary/25 active:scale-95 transition-all flex items-center justify-center space-x-2"
-        >
-          <Save size={20} />
-          <span>Save Attendance</span>
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={shareOnWhatsApp}
+            className="flex-1 bg-[#25D366] text-white font-semibold py-4 rounded-2xl shadow-lg shadow-[#25D366]/25 active:scale-95 transition-all flex items-center justify-center space-x-2"
+          >
+            <Share2 size={20} />
+            <span>WhatsApp</span>
+          </button>
+          <button 
+            onClick={submitAttendance}
+            className="flex-1 bg-primary text-primary-foreground font-semibold py-4 rounded-2xl shadow-lg shadow-primary/25 active:scale-95 transition-all flex items-center justify-center space-x-2"
+          >
+            <Save size={20} />
+            <span>Save</span>
+          </button>
+        </div>
       </div>
     </div>
   );
