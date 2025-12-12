@@ -1,0 +1,133 @@
+import { Link } from "wouter";
+import { Sun, Sunrise, Moon, Clock, Search, BookOpen, CheckCircle2 } from "lucide-react";
+import { motion } from "framer-motion";
+import logo from '@assets/logo-social_1765305531532.png';
+import { useAuth } from "@/lib/auth";
+
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const item = {
+  hidden: { y: 20, opacity: 0 },
+  show: { y: 0, opacity: 1 }
+};
+
+export default function Home() {
+  const { toggleAdmin, isAdmin } = useAuth();
+
+  const prayers = [
+    { id: 'Fajr', label: 'Fajr', sub: 'Before sunrise', icon: Sunrise, time: '05:30 AM' },
+    { id: 'Dhuhr', label: 'Dhuhr', sub: 'Midday', icon: Sun, time: '12:30 PM' },
+    { id: 'Asr', label: 'Asr', sub: 'Afternoon', icon: Clock, time: '04:15 PM' },
+  ];
+
+  const eveningPrayers = [
+    { id: 'Maghrib', label: 'Maghrib', sub: 'Sunset', icon: Moon, time: '06:45 PM' },
+    { id: 'Isha', label: 'Isha', sub: 'Night', icon: Moon, time: '08:00 PM' },
+  ];
+
+  return (
+    <div className={`min-h-screen pb-8 transition-colors duration-500 ${isAdmin ? 'bg-gradient-to-b from-slate-800 to-slate-900' : 'bg-gradient-to-b from-emerald-400 to-emerald-600'}`}>
+      {/* Header Section */}
+      <div className="pt-12 pb-6 flex flex-col items-center justify-center space-y-4 text-white">
+        <button 
+          onClick={toggleAdmin}
+          className="bg-white/90 p-3 rounded-3xl shadow-lg backdrop-blur-sm active:scale-90 transition-transform cursor-pointer"
+        >
+          <img src={logo} alt="Caliph Logo" className="w-16 h-16 object-contain" />
+        </button>
+        <div className="text-center">
+          <h1 className="text-3xl font-bold font-heading drop-shadow-sm">
+            Caliph Attendance
+          </h1>
+          {isAdmin && <span className="text-xs bg-white/20 px-2 py-1 rounded-full font-medium tracking-wide">ADMIN MODE</span>}
+        </div>
+      </div>
+
+      <motion.div 
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="px-5 space-y-6"
+      >
+        {/* Daily Prayers Section */}
+        <div className="space-y-3">
+          <div className={`flex items-center justify-center space-x-2 font-medium ${isAdmin ? 'text-slate-300' : 'text-emerald-50'}`}>
+            <Search className="w-4 h-4" />
+            <span>Daily Prayers</span>
+          </div>
+
+          {/* Top Row: Fajr, Dhuhr, Asr */}
+          <div className="grid grid-cols-3 gap-3">
+            {prayers.map((prayer) => (
+              <Link key={prayer.id} href={`/select-class/${prayer.id}`}>
+                <motion.a 
+                  variants={item}
+                  className="bg-white rounded-2xl p-3 flex flex-col items-center justify-center text-center space-y-2 h-32 shadow-sm active:scale-95 transition-transform"
+                >
+                  <div className={isAdmin ? "text-slate-700" : "text-emerald-600"}>
+                    <prayer.icon size={28} strokeWidth={2} />
+                  </div>
+                  <div>
+                    <h3 className={`font-bold text-sm leading-tight ${isAdmin ? "text-slate-900" : "text-emerald-900"}`}>{prayer.label}</h3>
+                    <p className={`text-[10px] font-medium mt-0.5 ${isAdmin ? "text-slate-500" : "text-emerald-600/70"}`}>{prayer.sub}</p>
+                  </div>
+                </motion.a>
+              </Link>
+            ))}
+          </div>
+
+          {/* Middle Row: Maghrib, Isha */}
+          <div className="grid grid-cols-2 gap-3">
+            {eveningPrayers.map((prayer) => (
+              <Link key={prayer.id} href={`/select-class/${prayer.id}`}>
+                <motion.a 
+                  variants={item}
+                  className="bg-white rounded-2xl p-4 flex flex-col items-center justify-center text-center space-y-2 h-32 shadow-sm active:scale-95 transition-transform"
+                >
+                  <div className={isAdmin ? "text-slate-700" : "text-emerald-600"}>
+                    <prayer.icon size={32} strokeWidth={2} />
+                  </div>
+                  <div>
+                    <h3 className={`font-bold text-lg ${isAdmin ? "text-slate-900" : "text-emerald-900"}`}>{prayer.label}</h3>
+                    <p className={`text-xs font-medium ${isAdmin ? "text-slate-500" : "text-emerald-600/70"}`}>{prayer.sub}</p>
+                  </div>
+                </motion.a>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Other Tracking Section */}
+        <div className="space-y-3 pt-2">
+          <div className={`flex items-center justify-center space-x-2 font-medium ${isAdmin ? 'text-slate-300' : 'text-emerald-50'}`}>
+            <BookOpen className="w-4 h-4" />
+            <span>Other Tracking</span>
+          </div>
+
+          <Link href="/select-class/Other">
+            <motion.a 
+              variants={item}
+              className="bg-white rounded-3xl p-6 flex flex-col items-center justify-center text-center space-y-3 shadow-md active:scale-95 transition-transform w-full"
+            >
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-lg ${isAdmin ? "bg-gradient-to-br from-slate-600 to-slate-700 shadow-slate-300" : "bg-gradient-to-br from-orange-400 to-orange-500 shadow-orange-200"}`}>
+                <CheckCircle2 size={32} strokeWidth={2.5} />
+              </div>
+              <div>
+                <h3 className={`font-bold text-xl ${isAdmin ? "text-slate-900" : "text-emerald-950"}`}>Others</h3>
+                <p className={`text-xs font-medium mt-1 ${isAdmin ? "text-slate-500" : "text-emerald-600/60"}`}>Caps, Nails, Uniforms & More</p>
+              </div>
+            </motion.a>
+          </Link>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
