@@ -1,7 +1,7 @@
 import { STUDENTS, CLASSES } from "@/lib/mockData";
-import { Search, Trash2, Edit2, UserPlus, Upload } from "lucide-react";
+import { Search, Trash2, Edit2, UserPlus, Upload, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import * as XLSX from "xlsx";
 
 export default function Students() {
   const { isAdmin } = useAuth();
@@ -18,8 +19,85 @@ export default function Students() {
   const [bulkClass, setBulkClass] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [excelDialogOpen, setExcelDialogOpen] = useState(false);
+  const [excelClass, setExcelClass] = useState("");
+  const [excelPreview, setExcelPreview] = useState<{rollNo: number; name: string}[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const allStudents = Object.values(STUDENTS).flat();
+
+  const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+        
+        const students: {rollNo: number; name: string}[] = [];
+        jsonData.forEach((row, index) => {
+          if (index === 0) return;
+          const rollNo = row[0];
+          const name = row[1];
+          if (rollNo && name) {
+            students.push({ rollNo: Number(rollNo), name: String(name).trim() });
+          }
+        });
+        
+        setExcelPreview(students);
+        if (students.length === 0) {
+          toast({
+            title: "No students found",
+            description: "The Excel file should have Roll No in column A and Name in column B.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Error reading file",
+          description: "Could not read the Excel file. Please check the format.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleExcelImport = () => {
+    if (!excelClass) {
+      toast({
+        title: "Error",
+        description: "Please select a class first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (excelPreview.length === 0) {
+      toast({
+        title: "Error",
+        description: "No students to import. Please upload a valid Excel file.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setExcelDialogOpen(false);
+    setExcelPreview([]);
+    setExcelClass("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    
+    toast({
+      title: "Excel Import Successful",
+      description: `${excelPreview.length} students have been added to ${CLASSES.find(c => c.id === excelClass)?.name || excelClass}.`,
+      className: "bg-emerald-50 border-emerald-200 text-emerald-900",
+    });
+  };
 
   const filteredStudents = allStudents.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -95,9 +173,71 @@ export default function Students() {
         
         {isAdmin && (
           <div className="flex gap-2">
+            <Dialog open={excelDialogOpen} onOpenChange={setExcelDialogOpen}>
+              <DialogTrigger asChild>
+                <button className="bg-green-600 text-white p-3 rounded-xl shadow-lg shadow-green-600/20 active:scale-95 transition-transform" title="Import from Excel">
+                  <FileSpreadsheet size={20} />
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Import from Excel</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="excelClass">Select Class</Label>
+                    <Select value={excelClass} onValueChange={setExcelClass}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CLASSES.map(cls => (
+                          <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="excelFile">Upload Excel File</Label>
+                    <Input 
+                      id="excelFile"
+                      ref={fileInputRef}
+                      type="file" 
+                      accept=".xlsx,.xls"
+                      onChange={handleExcelFileChange}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-xs text-muted-foreground">Format: Column A = Roll No, Column B = Name (first row is header)</p>
+                  </div>
+                  
+                  {excelPreview.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Preview ({excelPreview.length} students)</Label>
+                      <div className="max-h-[200px] overflow-y-auto border rounded-lg p-2 space-y-1">
+                        {excelPreview.map((student, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-sm py-1 border-b last:border-0">
+                            <span className="w-8 text-muted-foreground">{student.rollNo}</span>
+                            <span>{student.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <Button 
+                    onClick={handleExcelImport} 
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    disabled={excelPreview.length === 0}
+                  >
+                    Import {excelPreview.length} Students
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
             <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
               <DialogTrigger asChild>
-                <button className="bg-blue-600 text-white p-3 rounded-xl shadow-lg shadow-blue-600/20 active:scale-95 transition-transform">
+                <button className="bg-blue-600 text-white p-3 rounded-xl shadow-lg shadow-blue-600/20 active:scale-95 transition-transform" title="Bulk Add (Text)">
                   <Upload size={20} />
                 </button>
               </DialogTrigger>
