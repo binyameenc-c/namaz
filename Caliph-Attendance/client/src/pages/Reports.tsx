@@ -37,46 +37,47 @@ export default function Reports() {
     
     let yPos = 50;
     
+    type AbsentStudent = { name: string; rollNo: number; reason?: string };
+    const classReport: Record<string, { className: string; absentStudents: AbsentStudent[] }> = {};
+    
     prayers.forEach((prayer) => {
       const prayerStore = store[prayer] || {};
-      const classIds = Object.keys(prayerStore);
-      
-      if (classIds.length > 0) {
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text(prayer, 20, yPos);
-        yPos += 10;
-        
-        classIds.forEach((classId) => {
-          const classData = prayerStore[classId];
-          
-          doc.setFontSize(12);
-          doc.setFont("helvetica", "bold");
-          doc.text(classData.className, 25, yPos);
-          yPos += 7;
-          
-          doc.setFontSize(10);
-          doc.setFont("helvetica", "normal");
-          
-          if (classData.absentStudents.length === 0) {
-            doc.text("All present", 30, yPos);
-            yPos += 6;
-          } else {
-            classData.absentStudents.forEach((s) => {
-              const reasonText = s.reason ? ` (${s.reason})` : "";
-              doc.text(`${s.name}${reasonText}`, 30, yPos);
-              yPos += 6;
-              
-              if (yPos > 270) {
-                doc.addPage();
-                yPos = 20;
-              }
-            });
-          }
-          yPos += 4;
+      Object.keys(prayerStore).forEach((classId) => {
+        const classData = prayerStore[classId];
+        if (!classReport[classId]) {
+          classReport[classId] = { className: classData.className, absentStudents: [] };
+        }
+        classData.absentStudents.forEach((s: AbsentStudent) => {
+          classReport[classId].absentStudents.push(s);
         });
+      });
+    });
+    
+    Object.values(classReport).forEach((cls) => {
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(cls.className, 20, yPos);
+      yPos += 7;
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      
+      if (cls.absentStudents.length === 0) {
+        doc.text("All present", 25, yPos);
         yPos += 6;
+      } else {
+        cls.absentStudents.forEach((s) => {
+          const reasonText = s.reason ? ` (${s.reason})` : "";
+          doc.text(`${s.name}${reasonText}`, 25, yPos);
+          yPos += 6;
+          
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
+        });
       }
+      yPos += 8;
     });
     
     doc.save(`Attendance_Report_${today.replace(/\s/g, "_")}.pdf`);
