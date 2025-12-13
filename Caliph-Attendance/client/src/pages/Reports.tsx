@@ -1,50 +1,105 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { MOCK_HISTORY } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
 import { Download, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getDailySummary, generateFullDailyReport, type DailySummary } from "@/lib/attendanceStore";
+import { jsPDF } from "jspdf";
 
 const TABS = ['Daily', 'Weekly', 'Monthly'];
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState('Daily');
   const { toast } = useToast();
+  const [summary, setSummary] = useState<DailySummary | null>(null);
 
-  // Transform mock data for chart
-  const data = [
-    { name: 'Fajr', present: 85, total: 100 },
-    { name: 'Dhuhr', present: 92, total: 100 },
-    { name: 'Asr', present: 88, total: 100 },
-    { name: 'Maghrib', present: 95, total: 100 },
-    { name: 'Isha', present: 78, total: 100 },
-  ];
+  useEffect(() => {
+    setSummary(getDailySummary());
+  }, []);
 
   const handleDownload = () => {
+    if (!summary) return;
+    
+    const doc = new jsPDF();
+    const today = new Date().toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+    
+    doc.setFontSize(20);
+    doc.text("Daily Attendance Report", 20, 20);
+    
+    doc.setFontSize(12);
+    doc.text(today, 20, 30);
+    
+    doc.setFontSize(14);
+    doc.text(`Present: ${summary.totalPresent} (${summary.presentPercentage}%)`, 20, 45);
+    doc.text(`Absent: ${summary.totalAbsent}`, 20, 55);
+    
+    let yPos = 75;
+    
+    doc.setFontSize(14);
+    doc.text("Prayer Summary:", 20, yPos);
+    yPos += 10;
+    
+    doc.setFontSize(11);
+    summary.prayerData.forEach((prayer) => {
+      if (prayer.total > 0) {
+        const percentage = Math.round((prayer.present / prayer.total) * 100);
+        doc.text(`${prayer.name}: ${prayer.present}/${prayer.total} (${percentage}%)`, 25, yPos);
+        yPos += 8;
+      }
+    });
+    
+    if (summary.allAbsentStudents.length > 0) {
+      yPos += 10;
+      doc.setFontSize(14);
+      doc.text("Absent Students:", 20, yPos);
+      yPos += 10;
+      
+      doc.setFontSize(10);
+      let currentPrayer = "";
+      summary.allAbsentStudents.forEach((student) => {
+        if (student.prayer !== currentPrayer) {
+          currentPrayer = student.prayer;
+          doc.setFont("helvetica", "bold");
+          doc.text(currentPrayer, 25, yPos);
+          yPos += 7;
+          doc.setFont("helvetica", "normal");
+        }
+        const reasonText = student.reason ? ` (${student.reason})` : "";
+        doc.text(`${student.className}: ${student.rollNo}. ${student.name}${reasonText}`, 30, yPos);
+        yPos += 6;
+        
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+      });
+    }
+    
+    doc.save(`Attendance_Report_${today.replace(/\s/g, "_")}.pdf`);
+    
     toast({
-      title: "Downloading Report",
-      description: "Your PDF summary is being generated...",
+      title: "Download Complete",
+      description: `Attendance_Report_${today.replace(/\s/g, "_")}.pdf saved.`,
       className: "bg-emerald-50 border-emerald-200 text-emerald-900",
     });
-    // In a real app, this would trigger a file download
-    setTimeout(() => {
-       toast({
-        title: "Download Complete",
-        description: "Attendance_Summary_2025.pdf saved.",
-      });
-    }, 1500);
   };
 
   const handleShare = () => {
-    // WhatsApp URL scheme
-    const text = "As-salamu alaykum. Here is the daily attendance summary for Caliph School: 88% Present, 12 Absent.";
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    const message = generateFullDailyReport();
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
+
+  const chartData = summary?.prayerData.filter(p => p.total > 0) || [];
+  const hasData = summary && summary.totalStudents > 0;
 
   return (
     <div className="p-6 space-y-8 min-h-screen bg-background pb-24">
       <header className="pt-6">
-        <h1 className="text-3xl font-bold font-heading">Reports</h1>
+        <h1 className="text-3xl font-bold font-heading">Summary</h1>
         <p className="text-sm text-muted-foreground">Attendance analytics & insights</p>
       </header>
 
@@ -99,61 +154,89 @@ export default function Reports() {
       <div className="grid grid-cols-2 gap-4">
         <div className="p-5 bg-emerald-500 text-white rounded-3xl shadow-lg shadow-emerald-500/20">
           <p className="text-emerald-100 text-xs font-medium uppercase tracking-wider mb-1">Total Present</p>
-          <h3 className="text-4xl font-bold font-heading">88%</h3>
-          <p className="text-xs text-emerald-100 mt-2">+2.5% vs last week</p>
+          <h3 className="text-4xl font-bold font-heading">{hasData ? `${summary.presentPercentage}%` : '--'}</h3>
+          <p className="text-xs text-emerald-100 mt-2">{hasData ? `${summary.totalPresent} students` : 'No data yet'}</p>
         </div>
         <div className="p-5 bg-red-50 text-red-900 rounded-3xl border border-red-100">
           <p className="text-red-400 text-xs font-medium uppercase tracking-wider mb-1">Absentees</p>
-          <h3 className="text-4xl font-bold font-heading">12</h3>
-          <p className="text-xs text-red-400 mt-2">Avg. per day</p>
+          <h3 className="text-4xl font-bold font-heading">{hasData ? summary.totalAbsent : '--'}</h3>
+          <p className="text-xs text-red-400 mt-2">{hasData ? 'Today' : 'No data yet'}</p>
         </div>
       </div>
 
       {/* Chart */}
-      <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
-        <h3 className="font-semibold mb-6">Prayer Attendance</h3>
-        <div className="h-[200px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data}>
-              <XAxis 
-                dataKey="name" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fontSize: 10, fill: '#888' }} 
-                dy={10}
-              />
-              <Tooltip 
-                cursor={{ fill: 'transparent' }}
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-              />
-              <Bar dataKey="present" radius={[6, 6, 6, 6]} barSize={32}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.present > 90 ? '#10b981' : entry.present > 80 ? '#34d399' : '#f87171'} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+      {chartData.length > 0 && (
+        <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+          <h3 className="font-semibold mb-6">Prayer Attendance</h3>
+          <div className="h-[200px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fill: '#888' }} 
+                  dy={10}
+                />
+                <Tooltip 
+                  cursor={{ fill: 'transparent' }}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  formatter={(value: number, name: string, props: any) => {
+                    const total = props.payload.total;
+                    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                    return [`${value}/${total} (${percentage}%)`, 'Present'];
+                  }}
+                />
+                <Bar dataKey="present" radius={[6, 6, 6, 6]} barSize={32}>
+                  {chartData.map((entry, index) => {
+                    const percentage = entry.total > 0 ? (entry.present / entry.total) * 100 : 0;
+                    return (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={percentage > 90 ? '#10b981' : percentage > 80 ? '#34d399' : '#f87171'} 
+                      />
+                    );
+                  })}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* No Data Message */}
+      {!hasData && (
+        <div className="bg-card border border-border rounded-3xl p-8 shadow-sm text-center">
+          <p className="text-muted-foreground">No attendance recorded yet today.</p>
+          <p className="text-sm text-muted-foreground mt-2">Start marking attendance to see your summary here.</p>
+        </div>
+      )}
 
       {/* Recent Activity */}
-      <div className="space-y-4">
-        <h3 className="font-semibold px-1">Recent Logs</h3>
-        <div className="space-y-3">
-          {MOCK_HISTORY.map((log) => (
-            <div key={log.id} className="flex items-center justify-between p-4 bg-card border border-border rounded-2xl">
-              <div>
-                <h4 className="font-medium">{log.prayer} - {log.classId}</h4>
-                <p className="text-xs text-muted-foreground">{log.date}</p>
+      {summary && summary.recentLogs.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="font-semibold px-1">Recent Logs</h3>
+          <div className="space-y-3">
+            {summary.recentLogs.map((log) => (
+              <div key={log.id} className="flex items-center justify-between p-4 bg-card border border-border rounded-2xl">
+                <div>
+                  <h4 className="font-medium">{log.prayer} - {log.className}</h4>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(log.timestamp).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-bold text-emerald-600">{log.presentCount}</span>
+                  <span className="text-sm text-muted-foreground">/{log.totalStudents}</span>
+                  {log.absentCount > 0 && (
+                    <p className="text-xs text-red-500">{log.absentCount} absent</p>
+                  )}
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-sm font-bold text-emerald-600">{log.presentCount}</span>
-                <span className="text-sm text-muted-foreground">/{log.totalStudents}</span>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { STUDENTS, type Student } from "./mockData";
+import { STUDENTS, CLASSES, type Student } from "./mockData";
 
 export interface AbsentStudent {
   name: string;
@@ -128,4 +128,119 @@ export function clearPrayerAttendance(prayerType: string): void {
   const store = getAttendanceStore();
   delete store[prayerType];
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+}
+
+export interface DailySummary {
+  totalPresent: number;
+  totalAbsent: number;
+  totalStudents: number;
+  presentPercentage: number;
+  prayerData: { name: string; present: number; total: number; absent: number }[];
+  recentLogs: { id: string; prayer: string; classId: string; className: string; presentCount: number; totalStudents: number; absentCount: number; timestamp: number }[];
+  allAbsentStudents: { prayer: string; className: string; name: string; rollNo: number; reason?: string }[];
+}
+
+export function getDailySummary(): DailySummary {
+  const store = getAttendanceStore();
+  const prayers = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+  
+  let totalPresent = 0;
+  let totalAbsent = 0;
+  let totalStudents = 0;
+  const recentLogs: DailySummary["recentLogs"] = [];
+  const allAbsentStudents: DailySummary["allAbsentStudents"] = [];
+  
+  const prayerData = prayers.map((prayer) => {
+    const prayerStore = store[prayer] || {};
+    let prayerPresent = 0;
+    let prayerTotal = 0;
+    let prayerAbsent = 0;
+    
+    CLASSES.forEach((cls) => {
+      const classData = prayerStore[cls.id];
+      const classStudents = STUDENTS[cls.id] || [];
+      const studentCount = classStudents.length || cls.students;
+      
+      if (classData) {
+        prayerPresent += classData.presentCount;
+        prayerTotal += classData.totalStudents;
+        prayerAbsent += classData.absentStudents.length;
+        
+        recentLogs.push({
+          id: `${prayer}-${classData.classId}`,
+          prayer,
+          classId: classData.classId,
+          className: classData.className,
+          presentCount: classData.presentCount,
+          totalStudents: classData.totalStudents,
+          absentCount: classData.absentStudents.length,
+          timestamp: classData.timestamp,
+        });
+        
+        classData.absentStudents.forEach((student) => {
+          allAbsentStudents.push({
+            prayer,
+            className: classData.className,
+            name: student.name,
+            rollNo: student.rollNo,
+            reason: student.reason,
+          });
+        });
+      } else {
+        prayerPresent += studentCount;
+        prayerTotal += studentCount;
+      }
+    });
+    
+    totalPresent += prayerPresent;
+    totalAbsent += prayerAbsent;
+    totalStudents += prayerTotal;
+    
+    return { name: prayer, present: prayerPresent, total: prayerTotal, absent: prayerAbsent };
+  });
+  
+  recentLogs.sort((a, b) => b.timestamp - a.timestamp);
+  
+  const presentPercentage = totalStudents > 0 ? Math.round((totalPresent / totalStudents) * 100) : 0;
+  
+  return {
+    totalPresent,
+    totalAbsent,
+    totalStudents,
+    presentPercentage,
+    prayerData,
+    recentLogs: recentLogs.slice(0, 10),
+    allAbsentStudents,
+  };
+}
+
+export function generateFullDailyReport(): string {
+  const summary = getDailySummary();
+  const today = new Date().toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  
+  let message = `📊 *Daily Attendance Report*\n`;
+  message += `📅 ${today}\n\n`;
+  message += `✅ Present: ${summary.totalPresent} (${summary.presentPercentage}%)\n`;
+  message += `❌ Absent: ${summary.totalAbsent}\n\n`;
+  
+  if (summary.allAbsentStudents.length > 0) {
+    message += `📋 *Absent Students:*\n`;
+    let currentPrayer = "";
+    summary.allAbsentStudents.forEach((s) => {
+      if (s.prayer !== currentPrayer) {
+        currentPrayer = s.prayer;
+        message += `\n🕌 *${currentPrayer}*\n`;
+      }
+      const reasonText = s.reason ? ` (${s.reason})` : "";
+      message += `   • ${s.className}: ${s.rollNo}. ${s.name}${reasonText}\n`;
+    });
+  } else {
+    message += `🎉 All students present!`;
+  }
+  
+  return message.trim();
 }

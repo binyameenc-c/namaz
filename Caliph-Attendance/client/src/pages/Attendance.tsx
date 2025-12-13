@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoute, useLocation } from "wouter";
 import { ArrowLeft, Check, X, Search, Save, RotateCcw, CheckCircle2 } from "lucide-react";
 import { STUDENTS, CLASSES } from "@/lib/mockData";
@@ -23,13 +23,51 @@ export default function Attendance() {
   const [attendance, setAttendance] = useState<Record<string, 'present' | 'absent'>>({});
   const [absentReasons, setAbsentReasons] = useState<Record<string, string>>({});
   const [quickAbsent, setQuickAbsent] = useState("");
+  const [hasSaved, setHasSaved] = useState(false);
+  
+  const attendanceRef = useRef(attendance);
+  const absentReasonsRef = useRef(absentReasons);
+  const hasSavedRef = useRef(hasSaved);
+  
+  useEffect(() => {
+    attendanceRef.current = attendance;
+    absentReasonsRef.current = absentReasons;
+    hasSavedRef.current = hasSaved;
+  }, [attendance, absentReasons, hasSaved]);
 
   // Initialize all as present by default on mount
   useEffect(() => {
     const initial: Record<string, 'present' | 'absent'> = {};
     students.forEach(s => initial[s.id] = 'present');
     setAttendance(initial);
+    setHasSaved(false);
   }, [classId]);
+  
+  const autoSaveAttendance = useCallback(() => {
+    if (hasSavedRef.current || !classData || Object.keys(attendanceRef.current).length === 0) return;
+    saveClassAttendance(type, classId, classData.name, attendanceRef.current, students, absentReasonsRef.current);
+  }, [type, classId, classData, students]);
+  
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      autoSaveAttendance();
+    };
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        autoSaveAttendance();
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      autoSaveAttendance();
+    };
+  }, [autoSaveAttendance]);
 
   const handleQuickAbsent = (value: string) => {
     setQuickAbsent(value);
@@ -73,6 +111,7 @@ export default function Attendance() {
     if (classData) {
       saveClassAttendance(type, classId, classData.name, attendance, students, absentReasons);
     }
+    setHasSaved(true);
     toast({
       title: "Attendance Saved",
       description: `Marked for ${classData?.name} - ${type}`,
