@@ -21,7 +21,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-border/10 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-50 max-w-md mx-auto rounded-t-2xl">
         <div className="flex justify-around items-center h-20 px-4 pb-2">
           {navItems.map((item) => {
-            const isActive = location === item.href || (location !== "/" && item.href !== "/" && location.startsWith(item.href));
+            const isActive = location === item.href || (location !== "/" && item.href !== "/" && location.startsWith(item.href)) || (item.href === "/reports" && location === "/summary");
             return (
               <Link key={item.label} href={item.href} className="flex flex-col items-center justify-center w-full h-full space-y-1">
                   <div className={cn(

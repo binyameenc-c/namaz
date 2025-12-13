@@ -59,6 +59,7 @@ function Router() {
         <Route path="/select-class/:type" component={ClassSelect} />
         <Route path="/attendance/:type/:classId" component={Attendance} />
         <Route path="/reports" component={Reports} />
+        <Route path="/summary" component={Reports} />
         <Route path="/classes" component={Classes} />
         <Route path="/students" component={Students} />
         <Route path="/settings" component={Settings} />
