@@ -50,11 +50,30 @@ export default function ClassSelect() {
       doc.text("No attendance recorded yet.", 20, yPos);
     } else {
       summaryLines.forEach((line) => {
+        doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
         doc.text(line.className, 20, yPos);
+        yPos += 7;
+        
+        doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        doc.text(line.status, 50, yPos);
-        yPos += 10;
+        
+        if (line.isAllPresent) {
+          doc.text("All present", 25, yPos);
+          yPos += 6;
+        } else {
+          line.absentDetails.forEach((student) => {
+            const reasonText = student.reason ? ` (${student.reason})` : "";
+            doc.text(`${student.name}${reasonText}`, 25, yPos);
+            yPos += 6;
+            
+            if (yPos > 270) {
+              doc.addPage();
+              yPos = 20;
+            }
+          });
+        }
+        yPos += 6;
       });
     }
     
