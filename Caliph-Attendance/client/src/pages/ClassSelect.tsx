@@ -108,28 +108,23 @@ export default function ClassSelect() {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-            Summary ({recordedClassCount} of {CLASSES.length})
-          </h3>
-        </div>
-        {recordedClassCount > 0 ? (
-          summaryLines.map((line) => (
+      {recordedClassCount > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              Summary ({recordedClassCount} of {CLASSES.length})
+            </h3>
+          </div>
+          {summaryLines.map((line) => (
             <div key={line.className} className="flex justify-between items-center py-2 border-b border-border last:border-0">
               <span className="font-medium">{line.className}</span>
               <span className={line.isAllPresent ? "text-emerald-600" : "text-red-500"}>
                 {line.status}
               </span>
             </div>
-          ))
-        ) : (
-          <div className="py-4 text-center text-muted-foreground">
-            <p className="text-sm">No attendance recorded yet</p>
-            <p className="text-xs mt-1">Select a class below to start</p>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-3">
         {CLASSES.map((cls, idx) => {
