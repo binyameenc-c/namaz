@@ -31,40 +31,6 @@ export const CLASSES: ClassGroup[] = [
   { id: 'S3B', name: 'S3-B', students: 30 },
 ];
 
-export const STUDENTS: Record<string, Student[]> = {
-  'S1A': Array.from({ length: 30 }, (_, i) => ({
-    id: `s1a-${i + 1}`,
-    name: `Student ${i + 1}`,
-    rollNo: i + 1,
-    classId: 'S1A',
-    gender: 'M'
-  })),
-  'S1B': Array.from({ length: 28 }, (_, i) => ({
-    id: `s1b-${i + 1}`,
-    name: `Student ${i + 1}`,
-    rollNo: i + 1,
-    classId: 'S1B',
-    gender: 'M'
-  })),
-  'S2A': Array.from({ length: 32 }, (_, i) => ({
-    id: `s2a-${i + 1}`,
-    name: `Student ${i + 1}`,
-    rollNo: i + 1,
-    classId: 'S2A',
-    gender: 'M'
-  })),
-  'S2B': Array.from({ length: 29 }, (_, i) => ({
-    id: `s2b-${i + 1}`,
-    name: `Student ${i + 1}`,
-    rollNo: i + 1,
-    classId: 'S2B',
-    gender: 'M'
-  })),
-};
+export const STUDENTS: Record<string, Student[]> = {};
 
-export const MOCK_HISTORY: AttendanceRecord[] = [
-  { id: '1', date: '2025-05-10', prayer: 'Fajr', classId: 'S1A', presentCount: 28, absentCount: 2, totalStudents: 30 },
-  { id: '2', date: '2025-05-10', prayer: 'Dhuhr', classId: 'S1A', presentCount: 29, absentCount: 1, totalStudents: 30 },
-  { id: '3', date: '2025-05-10', prayer: 'Asr', classId: 'S1A', presentCount: 30, absentCount: 0, totalStudents: 30 },
-  { id: '4', date: '2025-05-10', prayer: 'Fajr', classId: 'S2B', presentCount: 25, absentCount: 4, totalStudents: 29 },
-];
+export const MOCK_HISTORY: AttendanceRecord[] = [];
