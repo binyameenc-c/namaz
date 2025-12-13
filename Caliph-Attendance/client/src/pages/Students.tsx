@@ -235,49 +235,6 @@ export default function Students() {
               </DialogContent>
             </Dialog>
             
-            <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
-              <DialogTrigger asChild>
-                <button className="bg-blue-600 text-white p-3 rounded-xl shadow-lg shadow-blue-600/20 active:scale-95 transition-transform" title="Bulk Add (Text)">
-                  <Upload size={20} />
-                </button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Bulk Add Students</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleBulkImport} className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="bulkClass">Select Class</Label>
-                    <Select value={bulkClass} onValueChange={setBulkClass}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select class" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CLASSES.map(cls => (
-                          <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bulkData">Student List</Label>
-                    <Textarea 
-                      id="bulkData"
-                      value={bulkData}
-                      onChange={(e) => setBulkData(e.target.value)}
-                      placeholder="Enter one student per line:&#10;1, Abdullah Khan&#10;2, Ahmed Ali&#10;3, Hassan Raza"
-                      className="min-h-[200px] font-mono text-sm"
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground">Format: Number, Name (one per line)</p>
-                  </div>
-                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-                    Import Students
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-            
             <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
               <DialogTrigger asChild>
                 <button className="bg-primary text-primary-foreground p-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-transform">
