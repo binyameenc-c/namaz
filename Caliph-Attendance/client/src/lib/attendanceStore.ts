@@ -68,7 +68,7 @@ export function generatePrayerSummaryMessage(prayerType: string): string {
     year: "numeric",
   });
   
-  let message = `📿 *${prayerType} Attendance*\n`;
+  let message = `📿 *${prayerType}*\n`;
   message += `📅 ${today}\n\n`;
   
   const classIds = Object.keys(prayerData);
@@ -80,19 +80,31 @@ export function generatePrayerSummaryMessage(prayerType: string): string {
   
   classIds.forEach((classId) => {
     const classData = prayerData[classId];
-    message += `*${classData.className}*\n`;
     
     if (classData.absentStudents.length === 0) {
-      message += `all present\n`;
+      message += `${classData.className} All present\n`;
     } else {
-      classData.absentStudents.forEach((student) => {
-        message += `${student.name}\n`;
-      });
+      const absentNames = classData.absentStudents.map((s) => s.name).join(", ");
+      message += `${classData.className} ${absentNames}\n`;
     }
-    message += `\n`;
   });
   
   return message.trim();
+}
+
+export function getSummaryLines(prayerType: string): { className: string; status: string; isAllPresent: boolean }[] {
+  const prayerData = getPrayerAttendance(prayerType);
+  const classIds = Object.keys(prayerData);
+  
+  return classIds.map((classId) => {
+    const classData = prayerData[classId];
+    const isAllPresent = classData.absentStudents.length === 0;
+    const status = isAllPresent 
+      ? "All present" 
+      : classData.absentStudents.map((s) => s.name).join(", ");
+    
+    return { className: classData.className, status, isAllPresent };
+  });
 }
 
 export function clearPrayerAttendance(prayerType: string): void {

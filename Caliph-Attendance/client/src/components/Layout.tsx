@@ -23,8 +23,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {navItems.map((item) => {
             const isActive = location === item.href || (location !== "/" && item.href !== "/" && location.startsWith(item.href));
             return (
-              <Link key={item.label} href={item.href}>
-                <a className="flex flex-col items-center justify-center w-full h-full space-y-1">
+              <Link key={item.label} href={item.href} className="flex flex-col items-center justify-center w-full h-full space-y-1">
                   <div className={cn(
                     "flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-all duration-300",
                     isActive 
@@ -42,7 +41,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   )}>
                     {item.label}
                   </span>
-                </a>
               </Link>
             );
           })}
