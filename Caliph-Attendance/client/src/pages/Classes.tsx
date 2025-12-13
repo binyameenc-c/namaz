@@ -1,7 +1,7 @@
 import { Link } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Users, ChevronRight, Plus, Edit2, Trash2 } from "lucide-react";
-import { CLASSES } from "@/lib/mockData";
+import { getClasses, addClass, updateClass, deleteClass, type ClassGroup } from "@/lib/mockData";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -12,14 +12,23 @@ import { Label } from "@/components/ui/label";
 export default function Classes() {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
+  const [classes, setClasses] = useState<ClassGroup[]>([]);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<{id: string, name: string, students: number} | null>(null);
   const [newClassName, setNewClassName] = useState("");
   const [newClassStudents, setNewClassStudents] = useState("");
 
+  useEffect(() => {
+    setClasses(getClasses());
+  }, []);
+
   const handleAddClass = (e: React.FormEvent) => {
     e.preventDefault();
+    if (newClassName && newClassStudents) {
+      addClass(newClassName, parseInt(newClassStudents) || 0);
+      setClasses(getClasses());
+    }
     setAddDialogOpen(false);
     setNewClassName("");
     setNewClassStudents("");
@@ -32,6 +41,13 @@ export default function Classes() {
 
   const handleEditClass = (e: React.FormEvent) => {
     e.preventDefault();
+    if (editingClass) {
+      const form = e.target as HTMLFormElement;
+      const nameInput = form.querySelector('#editClassName') as HTMLInputElement;
+      const studentsInput = form.querySelector('#editClassStudents') as HTMLInputElement;
+      updateClass(editingClass.id, nameInput.value, parseInt(studentsInput.value) || 0);
+      setClasses(getClasses());
+    }
     setEditDialogOpen(false);
     setEditingClass(null);
     toast({
@@ -41,7 +57,9 @@ export default function Classes() {
     });
   };
 
-  const handleDeleteClass = (className: string) => {
+  const handleDeleteClass = (classId: string, className: string) => {
+    deleteClass(classId);
+    setClasses(getClasses());
     toast({
       title: "Class Deleted",
       description: `${className} has been removed.`,
@@ -108,19 +126,19 @@ export default function Classes() {
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="p-4 bg-slate-100 rounded-2xl border border-slate-200">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Classes</h3>
-            <p className="text-2xl font-bold text-slate-900">{CLASSES.length}</p>
+            <p className="text-2xl font-bold text-slate-900">{classes.length}</p>
           </div>
           <div className="p-4 bg-slate-100 rounded-2xl border border-slate-200">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Capacity</h3>
             <p className="text-2xl font-bold text-slate-900">
-              {CLASSES.reduce((acc, curr) => acc + curr.students, 0)}
+              {classes.reduce((acc, curr) => acc + curr.students, 0)}
             </p>
           </div>
         </div>
       )}
 
       <div className="grid gap-3">
-        {CLASSES.map((cls) => (
+        {classes.map((cls) => (
           <div key={cls.id} className="flex items-center justify-between p-5 bg-card border border-border rounded-2xl shadow-sm hover:shadow-md transition-all group">
             <Link href={`/attendance/Fajr/${cls.id}`} className="flex items-center space-x-4 flex-1">
               <div className={`p-3 rounded-xl ${isAdmin ? 'bg-slate-100 text-slate-700' : 'bg-primary/10 text-primary'}`}>
@@ -141,7 +159,7 @@ export default function Classes() {
                   <Edit2 size={16} />
                 </button>
                 <button 
-                  onClick={() => handleDeleteClass(cls.name)}
+                  onClick={() => handleDeleteClass(cls.id, cls.name)}
                   className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
                 >
                   <Trash2 size={16} />
