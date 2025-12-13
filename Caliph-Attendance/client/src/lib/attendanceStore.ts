@@ -1,11 +1,17 @@
 import { STUDENTS, type Student } from "./mockData";
 
+export interface AbsentStudent {
+  name: string;
+  rollNo: number;
+  reason?: string;
+}
+
 export interface ClassAttendance {
   classId: string;
   className: string;
   totalStudents: number;
   presentCount: number;
-  absentStudents: { name: string; rollNo: number }[];
+  absentStudents: AbsentStudent[];
   timestamp: number;
 }
 
@@ -28,7 +34,8 @@ export function saveClassAttendance(
   classId: string,
   className: string,
   attendance: Record<string, "present" | "absent">,
-  students: Student[]
+  students: Student[],
+  absentReasons: Record<string, string> = {}
 ): void {
   const store = getAttendanceStore();
   
@@ -36,9 +43,13 @@ export function saveClassAttendance(
     store[prayerType] = {};
   }
   
-  const absentStudents = students
+  const absentStudents: AbsentStudent[] = students
     .filter((s) => attendance[s.id] === "absent")
-    .map((s) => ({ name: s.name, rollNo: s.rollNo }));
+    .map((s) => ({ 
+      name: s.name, 
+      rollNo: s.rollNo,
+      reason: absentReasons[s.id] || undefined
+    }));
   
   const presentCount = students.filter((s) => attendance[s.id] === "present").length;
   
@@ -82,17 +93,20 @@ export function generatePrayerSummaryMessage(prayerType: string): string {
     const classData = prayerData[classId];
     
     if (classData.absentStudents.length === 0) {
-      message += `${classData.className} All present\n`;
+      message += `✅ ${classData.className}: All present\n`;
     } else {
-      const absentNames = classData.absentStudents.map((s) => s.name).join(", ");
-      message += `${classData.className} ${absentNames}\n`;
+      message += `📋 ${classData.className}:\n`;
+      classData.absentStudents.forEach((s) => {
+        const reasonText = s.reason ? ` (${s.reason})` : "";
+        message += `   ❌ ${s.rollNo}. ${s.name}${reasonText}\n`;
+      });
     }
   });
   
   return message.trim();
 }
 
-export function getSummaryLines(prayerType: string): { className: string; status: string; isAllPresent: boolean }[] {
+export function getSummaryLines(prayerType: string): { className: string; status: string; isAllPresent: boolean; absentDetails: AbsentStudent[] }[] {
   const prayerData = getPrayerAttendance(prayerType);
   const classIds = Object.keys(prayerData);
   
@@ -101,9 +115,12 @@ export function getSummaryLines(prayerType: string): { className: string; status
     const isAllPresent = classData.absentStudents.length === 0;
     const status = isAllPresent 
       ? "All present" 
-      : classData.absentStudents.map((s) => s.name).join(", ");
+      : classData.absentStudents.map((s) => {
+          const reasonText = s.reason ? ` (${s.reason})` : "";
+          return `${s.name}${reasonText}`;
+        }).join(", ");
     
-    return { className: classData.className, status, isAllPresent };
+    return { className: classData.className, status, isAllPresent, absentDetails: classData.absentStudents };
   });
 }
 

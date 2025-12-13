@@ -21,6 +21,7 @@ export default function Attendance() {
   const students = STUDENTS[classId] || [];
 
   const [attendance, setAttendance] = useState<Record<string, 'present' | 'absent'>>({});
+  const [absentReasons, setAbsentReasons] = useState<Record<string, string>>({});
   const [quickAbsent, setQuickAbsent] = useState("");
 
   // Initialize all as present by default on mount
@@ -61,9 +62,16 @@ export default function Attendance() {
     }));
   };
 
+  const updateReason = (studentId: string, reason: string) => {
+    setAbsentReasons(prev => ({
+      ...prev,
+      [studentId]: reason
+    }));
+  };
+
   const submitAttendance = () => {
     if (classData) {
-      saveClassAttendance(type, classId, classData.name, attendance, students);
+      saveClassAttendance(type, classId, classData.name, attendance, students, absentReasons);
     }
     toast({
       title: "Attendance Saved",
@@ -77,6 +85,7 @@ export default function Attendance() {
     const cleared: Record<string, 'present' | 'absent'> = {};
     students.forEach(s => cleared[s.id] = 'present');
     setAttendance(cleared);
+    setAbsentReasons({});
     setQuickAbsent("");
     toast({
       title: "Attendance Cleared",
@@ -165,36 +174,50 @@ export default function Attendance() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className={cn(
-                "flex items-center justify-between p-3 rounded-2xl border transition-all duration-200",
+                "p-3 rounded-2xl border transition-all duration-200",
                 isPresent 
                   ? "bg-card border-border" 
                   : "bg-red-50/50 border-red-100 dark:bg-red-950/20 dark:border-red-900/50"
               )}
             >
-              <div className="flex items-center space-x-4">
-                <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm",
-                  isPresent ? "bg-secondary text-foreground" : "bg-red-100 text-red-700"
-                )}>
-                  {student.rollNo}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm",
+                    isPresent ? "bg-secondary text-foreground" : "bg-red-100 text-red-700"
+                  )}>
+                    {student.rollNo}
+                  </div>
+                  <div>
+                    <h4 className={cn("font-medium", !isPresent && "text-red-700")}>{student.name}</h4>
+                    <p className="text-xs text-muted-foreground">ID: {student.id}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className={cn("font-medium", !isPresent && "text-red-700")}>{student.name}</h4>
-                  <p className="text-xs text-muted-foreground">ID: {student.id}</p>
-                </div>
-              </div>
 
-              <button 
-                onClick={() => toggleStatus(student.id)}
-                className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-sm active:scale-90",
-                  isPresent 
-                    ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200" 
-                    : "bg-red-100 text-red-600 hover:bg-red-200"
-                )}
-              >
-                {isPresent ? <Check size={24} strokeWidth={3} /> : <X size={24} strokeWidth={3} />}
-              </button>
+                <button 
+                  onClick={() => toggleStatus(student.id)}
+                  className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-sm active:scale-90",
+                    isPresent 
+                      ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200" 
+                      : "bg-red-100 text-red-600 hover:bg-red-200"
+                  )}
+                >
+                  {isPresent ? <Check size={24} strokeWidth={3} /> : <X size={24} strokeWidth={3} />}
+                </button>
+              </div>
+              
+              {!isPresent && (
+                <div className="mt-2 ml-14">
+                  <input
+                    type="text"
+                    placeholder="Reason (optional): sick, leave, etc."
+                    value={absentReasons[student.id] || ""}
+                    onChange={(e) => updateReason(student.id, e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-white border border-red-200 rounded-lg focus:outline-none focus:border-red-400"
+                  />
+                </div>
+              )}
             </motion.div>
           );
         })}
