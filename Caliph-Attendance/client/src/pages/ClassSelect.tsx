@@ -108,24 +108,6 @@ export default function ClassSelect() {
         </div>
       </div>
 
-      {recordedClassCount > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-              Summary ({recordedClassCount} of {CLASSES.length})
-            </h3>
-          </div>
-          {summaryLines.map((line) => (
-            <div key={line.className} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-              <span className="font-medium">{line.className}</span>
-              <span className={line.isAllPresent ? "text-emerald-600" : "text-red-500"}>
-                {line.status}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className="grid gap-3">
         {CLASSES.map((cls, idx) => {
           const classAttendance = attendanceData[cls.id];
