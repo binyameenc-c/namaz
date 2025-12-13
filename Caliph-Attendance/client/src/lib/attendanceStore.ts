@@ -256,29 +256,34 @@ export function generateFullDailyReport(): string {
   });
   
   let message = `📊 *Daily Attendance Report*\n`;
-  message += `📅 ${today}\n`;
+  message += `📅 ${today}\n\n`;
+  
+  const classReport: Record<string, { className: string; absentStudents: AbsentStudent[] }> = {};
   
   prayers.forEach((prayer) => {
     const prayerStore = store[prayer] || {};
-    const classIds = Object.keys(prayerStore);
-    
-    if (classIds.length > 0) {
-      message += `\n🕌 *${prayer}*\n`;
-      
-      classIds.forEach((classId) => {
-        const classData = prayerStore[classId];
-        message += `\n*${classData.className}*\n`;
-        
-        if (classData.absentStudents.length === 0) {
-          message += `All present\n`;
-        } else {
-          classData.absentStudents.forEach((s) => {
-            const reasonText = s.reason ? ` (${s.reason})` : "";
-            message += `${s.name}${reasonText}\n`;
-          });
-        }
+    Object.keys(prayerStore).forEach((classId) => {
+      const classData = prayerStore[classId];
+      if (!classReport[classId]) {
+        classReport[classId] = { className: classData.className, absentStudents: [] };
+      }
+      classData.absentStudents.forEach((s) => {
+        classReport[classId].absentStudents.push(s);
+      });
+    });
+  });
+  
+  Object.values(classReport).forEach((cls) => {
+    message += `*${cls.className}*\n`;
+    if (cls.absentStudents.length === 0) {
+      message += `All present\n`;
+    } else {
+      cls.absentStudents.forEach((s) => {
+        const reasonText = s.reason ? ` (${s.reason})` : "";
+        message += `${s.name}${reasonText}\n`;
       });
     }
+    message += `\n`;
   });
   
   return message.trim();
