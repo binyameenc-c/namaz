@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getDailySummary, generateFullDailyReport, getClassSummariesByPrayer, type DailySummary, type ClassSummaryByPrayer } from "@/lib/attendanceStore";
+import { getDailySummary, generateFullDailyReport, getClassSummariesByPrayer, getAttendanceStore, type DailySummary, type ClassSummaryByPrayer } from "@/lib/attendanceStore";
 import { jsPDF } from "jspdf";
 
 const TABS = ['Daily', 'Weekly', 'Monthly'];
@@ -19,7 +19,8 @@ export default function Reports() {
   }, []);
 
   const handleDownload = () => {
-    if (!summary) return;
+    const store = getAttendanceStore();
+    const prayers = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
     
     const doc = new jsPDF();
     const today = new Date().toLocaleDateString("en-GB", {
@@ -34,51 +35,49 @@ export default function Reports() {
     doc.setFontSize(12);
     doc.text(today, 20, 30);
     
-    doc.setFontSize(14);
-    doc.text(`Present: ${summary.totalPresent} (${summary.presentPercentage}%)`, 20, 45);
-    doc.text(`Absent: ${summary.totalAbsent}`, 20, 55);
+    let yPos = 50;
     
-    let yPos = 75;
-    
-    doc.setFontSize(14);
-    doc.text("Prayer Summary:", 20, yPos);
-    yPos += 10;
-    
-    doc.setFontSize(11);
-    summary.prayerData.forEach((prayer) => {
-      if (prayer.total > 0) {
-        const percentage = Math.round((prayer.present / prayer.total) * 100);
-        doc.text(`${prayer.name}: ${prayer.present}/${prayer.total} (${percentage}%)`, 25, yPos);
-        yPos += 8;
+    prayers.forEach((prayer) => {
+      const prayerStore = store[prayer] || {};
+      const classIds = Object.keys(prayerStore);
+      
+      if (classIds.length > 0) {
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text(prayer, 20, yPos);
+        yPos += 10;
+        
+        classIds.forEach((classId) => {
+          const classData = prayerStore[classId];
+          
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
+          doc.text(classData.className, 25, yPos);
+          yPos += 7;
+          
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "normal");
+          
+          if (classData.absentStudents.length === 0) {
+            doc.text("All present", 30, yPos);
+            yPos += 6;
+          } else {
+            classData.absentStudents.forEach((s) => {
+              const reasonText = s.reason ? ` (${s.reason})` : "";
+              doc.text(`${s.name}${reasonText}`, 30, yPos);
+              yPos += 6;
+              
+              if (yPos > 270) {
+                doc.addPage();
+                yPos = 20;
+              }
+            });
+          }
+          yPos += 4;
+        });
+        yPos += 6;
       }
     });
-    
-    if (summary.allAbsentStudents.length > 0) {
-      yPos += 10;
-      doc.setFontSize(14);
-      doc.text("Absent Students:", 20, yPos);
-      yPos += 10;
-      
-      doc.setFontSize(10);
-      let currentPrayer = "";
-      summary.allAbsentStudents.forEach((student) => {
-        if (student.prayer !== currentPrayer) {
-          currentPrayer = student.prayer;
-          doc.setFont("helvetica", "bold");
-          doc.text(currentPrayer, 25, yPos);
-          yPos += 7;
-          doc.setFont("helvetica", "normal");
-        }
-        const reasonText = student.reason ? ` (${student.reason})` : "";
-        doc.text(`${student.className}: ${student.rollNo}. ${student.name}${reasonText}`, 30, yPos);
-        yPos += 6;
-        
-        if (yPos > 270) {
-          doc.addPage();
-          yPos = 20;
-        }
-      });
-    }
     
     doc.save(`Attendance_Report_${today.replace(/\s/g, "_")}.pdf`);
     

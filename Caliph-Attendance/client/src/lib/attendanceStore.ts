@@ -247,7 +247,8 @@ export function getClassSummariesByPrayer(): ClassSummaryByPrayer[] {
 }
 
 export function generateFullDailyReport(): string {
-  const summary = getDailySummary();
+  const store = getAttendanceStore();
+  const prayers = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
   const today = new Date().toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",
@@ -255,24 +256,30 @@ export function generateFullDailyReport(): string {
   });
   
   let message = `📊 *Daily Attendance Report*\n`;
-  message += `📅 ${today}\n\n`;
-  message += `✅ Present: ${summary.totalPresent} (${summary.presentPercentage}%)\n`;
-  message += `❌ Absent: ${summary.totalAbsent}\n\n`;
+  message += `📅 ${today}\n`;
   
-  if (summary.allAbsentStudents.length > 0) {
-    message += `📋 *Absent Students:*\n`;
-    let currentPrayer = "";
-    summary.allAbsentStudents.forEach((s) => {
-      if (s.prayer !== currentPrayer) {
-        currentPrayer = s.prayer;
-        message += `\n🕌 *${currentPrayer}*\n`;
-      }
-      const reasonText = s.reason ? ` (${s.reason})` : "";
-      message += `   • ${s.className}: ${s.rollNo}. ${s.name}${reasonText}\n`;
-    });
-  } else {
-    message += `🎉 All students present!`;
-  }
+  prayers.forEach((prayer) => {
+    const prayerStore = store[prayer] || {};
+    const classIds = Object.keys(prayerStore);
+    
+    if (classIds.length > 0) {
+      message += `\n🕌 *${prayer}*\n`;
+      
+      classIds.forEach((classId) => {
+        const classData = prayerStore[classId];
+        message += `\n*${classData.className}*\n`;
+        
+        if (classData.absentStudents.length === 0) {
+          message += `All present\n`;
+        } else {
+          classData.absentStudents.forEach((s) => {
+            const reasonText = s.reason ? ` (${s.reason})` : "";
+            message += `${s.name}${reasonText}\n`;
+          });
+        }
+      });
+    }
+  });
   
   return message.trim();
 }
