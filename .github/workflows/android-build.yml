@@ -1,0 +1,62 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies and build web
+        working-directory: Caliph-Attendance
+        run: |
+          npm ci
+          npm run build
+
+      - name: Add Capacitor CLI and Core
+        working-directory: Caliph-Attendance
+        run: |
+          npm install --no-audit --no-fund @capacitor/cli @capacitor/core --save-dev
+
+      - name: Setup Java (for Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Setup Android SDK
+        uses: r0adkll/setup-android@v2
+        with:
+          api-level: 33
+          build-tools: '33.0.2'
+
+      - name: Initialize Capacitor (idempotent)
+        working-directory: Caliph-Attendance
+        run: |
+          npx cap init com.example.namaz Namaz --web-dir=dist/public || true
+          npx cap add android || true
+          npx cap sync android
+
+      - name: Build Android (Gradle)
+        working-directory: Caliph-Attendance/android
+        env:
+          JAVA_HOME: ${{ steps.setup-java.outputs.java-home }}
+        run: |
+          ./gradlew assembleRelease --no-daemon || ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: namaz-apk
+          path: |
+            Caliph-Attendance/android/app/build/outputs/**/*.apk
