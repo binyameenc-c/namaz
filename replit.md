@@ -41,3 +41,9 @@ Caliph-Attendance/
 ## Production Build
 - Run `npm run build` to build for production
 - Run `npm run start` to start the production server
+
+## Recent Changes (December 2025)
+- **Auto-save attendance**: Attendance is automatically saved when leaving the attendance page (back button, app close, tab switch)
+- **Real-time Summary**: Summary page now shows actual attendance data from localStorage
+- **All-present default**: Classes that are not opened are treated as "all present" in reports
+- **PDF/WhatsApp sharing**: Reports can be downloaded as PDF or shared via WhatsApp with real attendance data
