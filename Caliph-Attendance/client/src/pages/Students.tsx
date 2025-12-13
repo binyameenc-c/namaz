@@ -1,5 +1,5 @@
-import { STUDENTS } from "@/lib/mockData";
-import { Search, Plus, Trash2, Edit2, UserPlus } from "lucide-react";
+import { STUDENTS, CLASSES } from "@/lib/mockData";
+import { Search, Trash2, Edit2, UserPlus, Upload } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -8,13 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function Students() {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  // In a real app, this would be from API, here we just filter the static list
-  // For the purpose of "Adding/Deleting" in mock mode, we'll just show the UI interactions
+  const [bulkData, setBulkData] = useState("");
+  const [bulkClass, setBulkClass] = useState("");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  
   const allStudents = Object.values(STUDENTS).flat();
 
   const filteredStudents = allStudents.filter(s => 
@@ -32,11 +36,51 @@ export default function Students() {
 
   const handleAddStudent = (e: React.FormEvent) => {
     e.preventDefault();
+    setAddDialogOpen(false);
     toast({
       title: "Student Added",
       description: "New student has been successfully registered.",
       className: "bg-emerald-50 border-emerald-200 text-emerald-900",
     });
+  };
+
+  const handleBulkImport = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkClass) {
+      toast({
+        title: "Error",
+        description: "Please select a class first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const lines = bulkData.trim().split('\n').filter(line => line.trim());
+    let successCount = 0;
+    
+    lines.forEach(line => {
+      const parts = line.split(',').map(p => p.trim());
+      if (parts.length >= 2) {
+        successCount++;
+      }
+    });
+    
+    if (successCount > 0) {
+      setBulkDialogOpen(false);
+      setBulkData("");
+      setBulkClass("");
+      toast({
+        title: "Bulk Import Successful",
+        description: `${successCount} students have been added to ${bulkClass}.`,
+        className: "bg-emerald-50 border-emerald-200 text-emerald-900",
+      });
+    } else {
+      toast({
+        title: "Import Failed",
+        description: "No valid entries found. Use format: Number, Name",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -50,44 +94,89 @@ export default function Students() {
         </div>
         
         {isAdmin && (
-          <Dialog>
-            <DialogTrigger asChild>
-              <button className="bg-primary text-primary-foreground p-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-transform">
-                <UserPlus size={20} />
-              </button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Student</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddStudent} className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" placeholder="e.g. Abdullah Khan" required />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+          <div className="flex gap-2">
+            <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+              <DialogTrigger asChild>
+                <button className="bg-blue-600 text-white p-3 rounded-xl shadow-lg shadow-blue-600/20 active:scale-95 transition-transform">
+                  <Upload size={20} />
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Bulk Add Students</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleBulkImport} className="space-y-4 pt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="roll">Roll No</Label>
-                    <Input id="roll" type="number" placeholder="e.g. 45" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="class">Class</Label>
-                    <Select>
+                    <Label htmlFor="bulkClass">Select Class</Label>
+                    <Select value={bulkClass} onValueChange={setBulkClass}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select" />
+                        <SelectValue placeholder="Select class" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="s1a">S1-A</SelectItem>
-                        <SelectItem value="s1b">S1-B</SelectItem>
-                        <SelectItem value="s2a">S2-A</SelectItem>
+                        {CLASSES.map(cls => (
+                          <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                <Button type="submit" className="w-full bg-primary hover:bg-emerald-700">Add Student</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <div className="space-y-2">
+                    <Label htmlFor="bulkData">Student List</Label>
+                    <Textarea 
+                      id="bulkData"
+                      value={bulkData}
+                      onChange={(e) => setBulkData(e.target.value)}
+                      placeholder="Enter one student per line:&#10;1, Abdullah Khan&#10;2, Ahmed Ali&#10;3, Hassan Raza"
+                      className="min-h-[200px] font-mono text-sm"
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">Format: Number, Name (one per line)</p>
+                  </div>
+                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
+                    Import Students
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+            
+            <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+              <DialogTrigger asChild>
+                <button className="bg-primary text-primary-foreground p-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+                  <UserPlus size={20} />
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Student</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAddStudent} className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input id="name" placeholder="e.g. Abdullah Khan" required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="roll">Roll No</Label>
+                      <Input id="roll" type="number" placeholder="e.g. 45" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="class">Class</Label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CLASSES.map(cls => (
+                            <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full bg-primary hover:bg-emerald-700">Add Student</Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         )}
       </header>
 
