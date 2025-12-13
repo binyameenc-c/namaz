@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, Check, X, Search, Save } from "lucide-react";
+import { ArrowLeft, Check, X, Search, Save, RotateCcw, CheckCircle2 } from "lucide-react";
 import { STUDENTS, CLASSES } from "@/lib/mockData";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { saveClassAttendance } from "@/lib/attendanceStore";
+import { useAuth } from "@/lib/auth";
 
 export default function Attendance() {
   const [match, params] = useRoute("/attendance/:type/:classId");
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
   
   const type = params?.type || "Fajr";
   const classId = params?.classId || "S1A";
@@ -18,7 +20,6 @@ export default function Attendance() {
   const classData = CLASSES.find(c => c.id === classId);
   const students = STUDENTS[classId] || [];
 
-  // State: Record<studentId, 'present' | 'absent'>
   const [attendance, setAttendance] = useState<Record<string, 'present' | 'absent'>>({});
   const [quickAbsent, setQuickAbsent] = useState("");
 
@@ -72,6 +73,29 @@ export default function Attendance() {
     setLocation(`/select-class/${type}`);
   };
 
+  const clearAttendance = () => {
+    const cleared: Record<string, 'present' | 'absent'> = {};
+    students.forEach(s => cleared[s.id] = 'present');
+    setAttendance(cleared);
+    setQuickAbsent("");
+    toast({
+      title: "Attendance Cleared",
+      description: "All students marked as present.",
+      className: "bg-blue-50 border-blue-200 text-blue-900"
+    });
+  };
+
+  const markAllAbsent = () => {
+    const allAbsent: Record<string, 'present' | 'absent'> = {};
+    students.forEach(s => allAbsent[s.id] = 'absent');
+    setAttendance(allAbsent);
+    toast({
+      title: "All Marked Absent",
+      description: "All students marked as absent.",
+      variant: "destructive"
+    });
+  };
+
   const presentCount = Object.values(attendance).filter(s => s === 'present').length;
   const absentCount = Object.values(attendance).filter(s => s === 'absent').length;
 
@@ -89,9 +113,29 @@ export default function Attendance() {
               <p className="text-xs text-muted-foreground mt-1">{type} Attendance</p>
             </div>
           </div>
-          <div className="text-right">
-             <div className="text-xs font-medium text-muted-foreground">Present</div>
-             <div className="text-lg font-bold text-emerald-600">{presentCount}/{students.length}</div>
+          <div className="flex items-center gap-3">
+            {isAdmin && (
+              <div className="flex gap-2">
+                <button 
+                  onClick={clearAttendance}
+                  className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 active:scale-95 transition-all"
+                  title="Clear (Mark All Present)"
+                >
+                  <RotateCcw size={18} />
+                </button>
+                <button 
+                  onClick={markAllAbsent}
+                  className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 active:scale-95 transition-all"
+                  title="Mark All Absent"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            )}
+            <div className="text-right">
+               <div className="text-xs font-medium text-muted-foreground">Present</div>
+               <div className="text-lg font-bold text-emerald-600">{presentCount}/{students.length}</div>
+            </div>
           </div>
         </div>
 
