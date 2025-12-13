@@ -214,6 +214,38 @@ export function getDailySummary(): DailySummary {
   };
 }
 
+export interface ClassSummaryByPrayer {
+  prayer: string;
+  classes: { className: string; percentage: number; present: number; total: number }[];
+}
+
+export function getClassSummariesByPrayer(): ClassSummaryByPrayer[] {
+  const store = getAttendanceStore();
+  const prayers = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+  
+  return prayers.map((prayer) => {
+    const prayerStore = store[prayer] || {};
+    const classes: { className: string; percentage: number; present: number; total: number }[] = [];
+    
+    CLASSES.forEach((cls) => {
+      const classData = prayerStore[cls.id];
+      if (classData) {
+        const percentage = classData.totalStudents > 0 
+          ? Math.round((classData.presentCount / classData.totalStudents) * 100) 
+          : 0;
+        classes.push({
+          className: classData.className,
+          percentage,
+          present: classData.presentCount,
+          total: classData.totalStudents,
+        });
+      }
+    });
+    
+    return { prayer, classes };
+  }).filter(p => p.classes.length > 0);
+}
+
 export function generateFullDailyReport(): string {
   const summary = getDailySummary();
   const today = new Date().toLocaleDateString("en-GB", {

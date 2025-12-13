@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { cn } from "@/lib/utils";
-import { Download, Share2 } from "lucide-react";
+import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getDailySummary, generateFullDailyReport, type DailySummary } from "@/lib/attendanceStore";
+import { getDailySummary, generateFullDailyReport, getClassSummariesByPrayer, type DailySummary, type ClassSummaryByPrayer } from "@/lib/attendanceStore";
 import { jsPDF } from "jspdf";
 
 const TABS = ['Daily', 'Weekly', 'Monthly'];
@@ -12,9 +11,11 @@ export default function Reports() {
   const [activeTab, setActiveTab] = useState('Daily');
   const { toast } = useToast();
   const [summary, setSummary] = useState<DailySummary | null>(null);
+  const [classSummaries, setClassSummaries] = useState<ClassSummaryByPrayer[]>([]);
 
   useEffect(() => {
     setSummary(getDailySummary());
+    setClassSummaries(getClassSummariesByPrayer());
   }, []);
 
   const handleDownload = () => {
@@ -93,7 +94,6 @@ export default function Reports() {
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  const chartData = summary?.prayerData.filter(p => p.total > 0) || [];
   const hasData = summary && summary.totalStudents > 0;
 
   return (
@@ -164,43 +164,45 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Chart */}
-      {chartData.length > 0 && (
-        <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
-          <h3 className="font-semibold mb-6">Prayer Attendance</h3>
-          <div className="h-[200px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 10, fill: '#888' }} 
-                  dy={10}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'transparent' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  formatter={(value: number, name: string, props: any) => {
-                    const total = props.payload.total;
-                    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                    return [`${value}/${total} (${percentage}%)`, 'Present'];
-                  }}
-                />
-                <Bar dataKey="present" radius={[6, 6, 6, 6]} barSize={32}>
-                  {chartData.map((entry, index) => {
-                    const percentage = entry.total > 0 ? (entry.present / entry.total) * 100 : 0;
-                    return (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={percentage > 90 ? '#10b981' : percentage > 80 ? '#34d399' : '#f87171'} 
-                      />
-                    );
-                  })}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Class Summary by Prayer */}
+      {classSummaries.length > 0 && (
+        <div className="space-y-4">
+          {classSummaries.map((prayerSummary) => (
+            <div key={prayerSummary.prayer} className="bg-card border border-border rounded-2xl p-4 shadow-sm">
+              <h3 className="font-semibold text-lg mb-3">{prayerSummary.prayer}</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {prayerSummary.classes.map((cls) => (
+                  <div 
+                    key={cls.className} 
+                    className={cn(
+                      "flex items-center justify-between p-3 rounded-xl",
+                      cls.percentage === 100 
+                        ? "bg-emerald-50 border border-emerald-200" 
+                        : cls.percentage >= 90 
+                          ? "bg-green-50 border border-green-200"
+                          : cls.percentage >= 80
+                            ? "bg-amber-50 border border-amber-200"
+                            : "bg-red-50 border border-red-200"
+                    )}
+                  >
+                    <span className="font-medium text-sm">{cls.className}</span>
+                    <span className={cn(
+                      "font-bold text-sm",
+                      cls.percentage === 100 
+                        ? "text-emerald-600" 
+                        : cls.percentage >= 90 
+                          ? "text-green-600"
+                          : cls.percentage >= 80
+                            ? "text-amber-600"
+                            : "text-red-600"
+                    )}>
+                      {cls.percentage}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
