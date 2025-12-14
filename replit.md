@@ -39,7 +39,7 @@ Caliph-Attendance/
 
 ## Database
 - Uses PostgreSQL with Drizzle ORM
-- Tables: users, teachers (with 5-teacher limit)
+- Tables: users, teachers (with 5-teacher limit), classes, students
 - Run `npm run db:push` to push schema changes to the database
 
 ## Mobile App (Android)
@@ -52,6 +52,7 @@ Caliph-Attendance/
 - Run `npm run start` to start the production server
 
 ## Recent Changes (December 2025)
+- **Database-backed Students & Classes**: Students and classes are now stored in PostgreSQL database, syncing across all devices instead of browser localStorage
 - **Teacher Authentication**: Login/registration system supporting up to 5 teachers with secure password hashing
 - **Mobile App Support**: Added Capacitor for Android APK generation
 - **Auto-save attendance**: Attendance is automatically saved when leaving the attendance page
