@@ -17,11 +17,14 @@ interface AuthContextType {
   login: (teacher: Teacher) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  changeAdminPassword: (currentPassword: string, newPassword: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const TEACHER_STORAGE_KEY = "caliph_teacher";
+const ADMIN_PASSWORD_KEY = "caliph_admin_password";
+const DEFAULT_ADMIN_PASSWORD = "123456";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -64,9 +67,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const getAdminPassword = (): string => {
+    return localStorage.getItem(ADMIN_PASSWORD_KEY) || DEFAULT_ADMIN_PASSWORD;
+  };
+
+  const changeAdminPassword = (currentPassword: string, newPassword: string): boolean => {
+    if (currentPassword !== getAdminPassword()) {
+      return false;
+    }
+    localStorage.setItem(ADMIN_PASSWORD_KEY, newPassword);
+    return true;
+  };
+
   const verifyPassword = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === "123456") {
+    if (password === getAdminPassword()) {
       setIsAdmin(true);
       setShowPasswordDialog(false);
       setPassword("");
@@ -91,7 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       teacher, 
       login, 
       logout, 
-      isAuthenticated: !!teacher 
+      isAuthenticated: !!teacher,
+      changeAdminPassword
     }}>
       {children}
       

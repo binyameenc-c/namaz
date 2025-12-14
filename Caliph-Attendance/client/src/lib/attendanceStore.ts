@@ -130,6 +130,10 @@ export function clearPrayerAttendance(prayerType: string): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
 }
 
+export function clearAllAttendance(): void {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 export interface DailySummary {
   totalPresent: number;
   totalAbsent: number;
