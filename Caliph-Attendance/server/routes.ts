@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTeacherSchema, loginTeacherSchema } from "@shared/schema";
+import { insertTeacherSchema, loginTeacherSchema, insertClassSchema, insertStudentSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
 
 const SALT_ROUNDS = 10;
@@ -80,6 +80,150 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Count error:", error);
       res.status(500).json({ error: "Failed to get teacher count" });
+    }
+  });
+
+  // ============ CLASSES API ============
+  
+  // Get all classes
+  app.get("/api/classes", async (req, res) => {
+    try {
+      const allClasses = await storage.getAllClasses();
+      const classesWithCount = await Promise.all(
+        allClasses.map(async (c) => ({
+          ...c,
+          students: await storage.getStudentCountByClass(c.id)
+        }))
+      );
+      res.json(classesWithCount);
+    } catch (error) {
+      console.error("Get classes error:", error);
+      res.status(500).json({ error: "Failed to get classes" });
+    }
+  });
+
+  // Create a class
+  app.post("/api/classes", async (req, res) => {
+    try {
+      const { id, name } = req.body;
+      if (!id || !name) {
+        return res.status(400).json({ error: "Class ID and name are required" });
+      }
+      const existing = await storage.getClass(id);
+      if (existing) {
+        return res.status(400).json({ error: "Class already exists" });
+      }
+      const newClass = await storage.createClass({ id, name });
+      res.status(201).json(newClass);
+    } catch (error) {
+      console.error("Create class error:", error);
+      res.status(500).json({ error: "Failed to create class" });
+    }
+  });
+
+  // Delete a class
+  app.delete("/api/classes/:id", async (req, res) => {
+    try {
+      await storage.deleteClass(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete class error:", error);
+      res.status(500).json({ error: "Failed to delete class" });
+    }
+  });
+
+  // ============ STUDENTS API ============
+
+  // Get all students
+  app.get("/api/students", async (req, res) => {
+    try {
+      const allStudents = await storage.getAllStudents();
+      res.json(allStudents);
+    } catch (error) {
+      console.error("Get students error:", error);
+      res.status(500).json({ error: "Failed to get students" });
+    }
+  });
+
+  // Get students by class
+  app.get("/api/students/class/:classId", async (req, res) => {
+    try {
+      const students = await storage.getStudentsByClass(req.params.classId);
+      res.json(students);
+    } catch (error) {
+      console.error("Get students by class error:", error);
+      res.status(500).json({ error: "Failed to get students" });
+    }
+  });
+
+  // Create a student
+  app.post("/api/students", async (req, res) => {
+    try {
+      const { id, name, rollNo, classId, gender } = req.body;
+      if (!id || !name || rollNo === undefined || !classId || !gender) {
+        return res.status(400).json({ error: "All student fields are required" });
+      }
+      const classExists = await storage.getClass(classId);
+      if (!classExists) {
+        return res.status(400).json({ error: "Class does not exist" });
+      }
+      const newStudent = await storage.createStudent({ id, name, rollNo, classId, gender });
+      res.status(201).json(newStudent);
+    } catch (error) {
+      console.error("Create student error:", error);
+      res.status(500).json({ error: "Failed to create student" });
+    }
+  });
+
+  // Bulk create students
+  app.post("/api/students/bulk", async (req, res) => {
+    try {
+      const { students: studentsList, classId } = req.body;
+      if (!Array.isArray(studentsList) || !classId) {
+        return res.status(400).json({ error: "Students array and classId are required" });
+      }
+      const classExists = await storage.getClass(classId);
+      if (!classExists) {
+        return res.status(400).json({ error: "Class does not exist" });
+      }
+      const currentCount = await storage.getStudentCountByClass(classId);
+      const formattedStudents = studentsList.map((s: any, index: number) => ({
+        id: `${classId.toLowerCase()}-${currentCount + index + 1}`,
+        name: s.name,
+        rollNo: s.rollNo || currentCount + index + 1,
+        classId,
+        gender: s.gender || 'M'
+      }));
+      const created = await storage.createStudentsBulk(formattedStudents);
+      res.status(201).json(created);
+    } catch (error) {
+      console.error("Bulk create students error:", error);
+      res.status(500).json({ error: "Failed to create students" });
+    }
+  });
+
+  // Update a student
+  app.put("/api/students/:id", async (req, res) => {
+    try {
+      const updated = await storage.updateStudent(req.params.id, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Student not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Update student error:", error);
+      res.status(500).json({ error: "Failed to update student" });
+    }
+  });
+
+  // Delete a student
+  app.delete("/api/students/:id", async (req, res) => {
+    try {
+      await storage.deleteStudent(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete student error:", error);
+      res.status(500).json({ error: "Failed to delete student" });
     }
   });
 

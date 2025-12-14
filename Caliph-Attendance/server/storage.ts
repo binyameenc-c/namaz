@@ -1,7 +1,12 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, count } from "drizzle-orm";
 import pg from "pg";
-import { teachers, type Teacher, type InsertTeacher } from "@shared/schema";
+import { 
+  teachers, classes, students,
+  type Teacher, type InsertTeacher,
+  type Class, type InsertClass,
+  type Student, type InsertStudent 
+} from "@shared/schema";
 
 const MAX_TEACHERS = 5;
 
@@ -11,15 +16,7 @@ const pool = new pg.Pool({
 
 export const db = drizzle(pool);
 
-export interface IStorage {
-  getTeacher(id: string): Promise<Teacher | undefined>;
-  getTeacherByEmail(email: string): Promise<Teacher | undefined>;
-  createTeacher(teacher: InsertTeacher): Promise<Teacher | { error: string }>;
-  getAllTeachers(): Promise<Teacher[]>;
-  getTeacherCount(): Promise<number>;
-}
-
-export class DatabaseStorage implements IStorage {
+export class DatabaseStorage {
   async getTeacher(id: string): Promise<Teacher | undefined> {
     const result = await db.select().from(teachers).where(eq(teachers.id, id));
     return result[0];
@@ -46,6 +43,69 @@ export class DatabaseStorage implements IStorage {
 
   async getTeacherCount(): Promise<number> {
     const result = await db.select({ count: count() }).from(teachers);
+    return result[0]?.count ?? 0;
+  }
+
+  // Classes methods
+  async getAllClasses(): Promise<Class[]> {
+    return await db.select().from(classes);
+  }
+
+  async getClass(id: string): Promise<Class | undefined> {
+    const result = await db.select().from(classes).where(eq(classes.id, id));
+    return result[0];
+  }
+
+  async createClass(insertClass: InsertClass): Promise<Class> {
+    const result = await db.insert(classes).values(insertClass).returning();
+    return result[0];
+  }
+
+  async deleteClass(id: string): Promise<void> {
+    await db.delete(students).where(eq(students.classId, id));
+    await db.delete(classes).where(eq(classes.id, id));
+  }
+
+  // Students methods
+  async getAllStudents(): Promise<Student[]> {
+    return await db.select().from(students);
+  }
+
+  async getStudentsByClass(classId: string): Promise<Student[]> {
+    return await db.select().from(students).where(eq(students.classId, classId));
+  }
+
+  async getStudent(id: string): Promise<Student | undefined> {
+    const result = await db.select().from(students).where(eq(students.id, id));
+    return result[0];
+  }
+
+  async createStudent(insertStudent: InsertStudent): Promise<Student> {
+    const result = await db.insert(students).values(insertStudent).returning();
+    return result[0];
+  }
+
+  async createStudentsBulk(studentsList: InsertStudent[]): Promise<Student[]> {
+    if (studentsList.length === 0) return [];
+    const result = await db.insert(students).values(studentsList).returning();
+    return result;
+  }
+
+  async updateStudent(id: string, data: Partial<InsertStudent>): Promise<Student | undefined> {
+    const result = await db.update(students).set(data).where(eq(students.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteStudent(id: string): Promise<void> {
+    await db.delete(students).where(eq(students.id, id));
+  }
+
+  async deleteStudentsByClass(classId: string): Promise<void> {
+    await db.delete(students).where(eq(students.classId, classId));
+  }
+
+  async getStudentCountByClass(classId: string): Promise<number> {
+    const result = await db.select({ count: count() }).from(students).where(eq(students.classId, classId));
     return result[0]?.count ?? 0;
   }
 }
