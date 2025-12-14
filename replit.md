@@ -59,3 +59,15 @@ Caliph-Attendance/
 - **Real-time Summary**: Summary page now shows actual attendance data from localStorage
 - **All-present default**: Classes that are not opened are treated as "all present" in reports
 - **PDF/WhatsApp sharing**: Reports can be downloaded as PDF or shared via WhatsApp with real attendance data
+- **Admin-only Clear Attendance**: Clear attendance buttons now require admin mode
+- **Admin Password Change**: Admin can change password from Settings page (default: 123456)
+
+## Admin Features
+- **Enable Admin Mode**: Tap the logo on Home page, enter password (default: 123456)
+- **Admin Capabilities**:
+  - Create/Edit/Delete Classes
+  - Add/Edit/Delete Students  
+  - Import students from Excel
+  - Edit attendance (toggle present/absent)
+  - Clear attendance for prayer or all
+  - Change admin password (Settings > Admin section)
