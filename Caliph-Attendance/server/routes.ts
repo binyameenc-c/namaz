@@ -159,14 +159,17 @@ export async function registerRoutes(
   // Create a student
   app.post("/api/students", async (req, res) => {
     try {
-      const { id, name, rollNo, classId, gender } = req.body;
-      if (!id || !name || rollNo === undefined || !classId || !gender) {
-        return res.status(400).json({ error: "All student fields are required" });
+      const { name, classId, gender } = req.body;
+      if (!name || !classId || !gender) {
+        return res.status(400).json({ error: "Name, class, and gender are required" });
       }
       const classExists = await storage.getClass(classId);
       if (!classExists) {
         return res.status(400).json({ error: "Class does not exist" });
       }
+      const maxRollNo = await storage.getMaxRollNoByClass(classId);
+      const rollNo = maxRollNo + 1;
+      const id = `${classId.toLowerCase()}-${Date.now()}-${rollNo}`;
       const newStudent = await storage.createStudent({ id, name, rollNo, classId, gender });
       res.status(201).json(newStudent);
     } catch (error) {
@@ -186,11 +189,12 @@ export async function registerRoutes(
       if (!classExists) {
         return res.status(400).json({ error: "Class does not exist" });
       }
-      const currentCount = await storage.getStudentCountByClass(classId);
+      const maxRollNo = await storage.getMaxRollNoByClass(classId);
+      const timestamp = Date.now();
       const formattedStudents = studentsList.map((s: any, index: number) => ({
-        id: `${classId.toLowerCase()}-${currentCount + index + 1}`,
+        id: `${classId.toLowerCase()}-${timestamp}-${maxRollNo + index + 1}`,
         name: s.name,
-        rollNo: s.rollNo || currentCount + index + 1,
+        rollNo: s.rollNo || maxRollNo + index + 1,
         classId,
         gender: s.gender || 'M'
       }));

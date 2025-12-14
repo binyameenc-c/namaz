@@ -1,30 +1,55 @@
-import { STUDENTS, CLASSES } from "@/lib/mockData";
-import { Search, Trash2, Edit2, UserPlus, Upload, FileSpreadsheet } from "lucide-react";
+import { api, type Student, type ClassGroup } from "@/lib/api";
+import { Search, Trash2, Edit2, UserPlus, FileSpreadsheet, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import * as XLSX from "xlsx";
 
 export default function Students() {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [bulkData, setBulkData] = useState("");
-  const [bulkClass, setBulkClass] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [excelDialogOpen, setExcelDialogOpen] = useState(false);
   const [excelClass, setExcelClass] = useState("");
   const [excelPreview, setExcelPreview] = useState<{rollNo: number; name: string}[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const allStudents = Object.values(STUDENTS).flat();
+  const [students, setStudents] = useState<Student[]>([]);
+  const [classes, setClasses] = useState<ClassGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newStudentName, setNewStudentName] = useState("");
+  const [newStudentClass, setNewStudentClass] = useState("");
+  const [newStudentGender, setNewStudentGender] = useState<'M' | 'F'>('M');
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [studentsData, classesData] = await Promise.all([
+        api.getStudents(),
+        api.getClasses()
+      ]);
+      setStudents(studentsData);
+      setClasses(classesData);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load data. Please refresh the page.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -39,18 +64,18 @@ export default function Students() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
         
-        const students: {rollNo: number; name: string}[] = [];
+        const studentsList: {rollNo: number; name: string}[] = [];
         jsonData.forEach((row, index) => {
           if (index === 0) return;
           const rollNo = row[0];
           const name = row[1];
           if (rollNo && name) {
-            students.push({ rollNo: Number(rollNo), name: String(name).trim() });
+            studentsList.push({ rollNo: Number(rollNo), name: String(name).trim() });
           }
         });
         
-        setExcelPreview(students);
-        if (students.length === 0) {
+        setExcelPreview(studentsList);
+        if (studentsList.length === 0) {
           toast({
             title: "No students found",
             description: "The Excel file should have Roll No in column A and Name in column B.",
@@ -68,7 +93,7 @@ export default function Students() {
     reader.readAsArrayBuffer(file);
   };
 
-  const handleExcelImport = () => {
+  const handleExcelImport = async () => {
     if (!excelClass) {
       toast({
         title: "Error",
@@ -87,79 +112,103 @@ export default function Students() {
       return;
     }
     
-    setExcelDialogOpen(false);
-    setExcelPreview([]);
-    setExcelClass("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    
-    toast({
-      title: "Excel Import Successful",
-      description: `${excelPreview.length} students have been added to ${CLASSES.find(c => c.id === excelClass)?.name || excelClass}.`,
-      className: "bg-emerald-50 border-emerald-200 text-emerald-900",
-    });
+    try {
+      await api.createStudentsBulk(
+        excelPreview.map(s => ({ name: s.name, rollNo: s.rollNo })),
+        excelClass
+      );
+      
+      setExcelDialogOpen(false);
+      setExcelPreview([]);
+      setExcelClass("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      
+      toast({
+        title: "Excel Import Successful",
+        description: `${excelPreview.length} students have been added to ${classes.find(c => c.id === excelClass)?.name || excelClass}.`,
+        className: "bg-emerald-50 border-emerald-200 text-emerald-900",
+      });
+      
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Import Failed",
+        description: error instanceof Error ? error.message : "Failed to import students",
+        variant: "destructive",
+      });
+    }
   };
 
-  const filteredStudents = allStudents.filter(s => 
+  const filteredStudents = students.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     s.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleDelete = (id: string, name: string) => {
-    toast({
-      title: "Student Removed",
-      description: `${name} has been removed from the database.`,
-      variant: "destructive",
-    });
-  };
-
-  const handleAddStudent = (e: React.FormEvent) => {
-    e.preventDefault();
-    setAddDialogOpen(false);
-    toast({
-      title: "Student Added",
-      description: "New student has been successfully registered.",
-      className: "bg-emerald-50 border-emerald-200 text-emerald-900",
-    });
-  };
-
-  const handleBulkImport = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!bulkClass) {
+  const handleDelete = async (id: string, name: string) => {
+    try {
+      await api.deleteStudent(id);
+      toast({
+        title: "Student Removed",
+        description: `${name} has been removed from the database.`,
+        variant: "destructive",
+      });
+      fetchData();
+    } catch (error) {
       toast({
         title: "Error",
-        description: "Please select a class first.",
+        description: "Failed to delete student",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newStudentName || !newStudentClass) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
         variant: "destructive",
       });
       return;
     }
     
-    const lines = bulkData.trim().split('\n').filter(line => line.trim());
-    let successCount = 0;
-    
-    lines.forEach(line => {
-      const parts = line.split(',').map(p => p.trim());
-      if (parts.length >= 2) {
-        successCount++;
-      }
-    });
-    
-    if (successCount > 0) {
-      setBulkDialogOpen(false);
-      setBulkData("");
-      setBulkClass("");
+    try {
+      await api.createStudent({
+        name: newStudentName,
+        classId: newStudentClass,
+        gender: newStudentGender
+      });
+      
+      setAddDialogOpen(false);
+      setNewStudentName("");
+      setNewStudentClass("");
+      setNewStudentGender('M');
+      
       toast({
-        title: "Bulk Import Successful",
-        description: `${successCount} students have been added to ${bulkClass}.`,
+        title: "Student Added",
+        description: "New student has been successfully registered.",
         className: "bg-emerald-50 border-emerald-200 text-emerald-900",
       });
-    } else {
+      
+      fetchData();
+    } catch (error) {
       toast({
-        title: "Import Failed",
-        description: "No valid entries found. Use format: Number, Name",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add student",
         variant: "destructive",
       });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 min-h-screen bg-background space-y-6 pb-24">
@@ -191,7 +240,7 @@ export default function Students() {
                         <SelectValue placeholder="Select class" />
                       </SelectTrigger>
                       <SelectContent>
-                        {CLASSES.map(cls => (
+                        {classes.map(cls => (
                           <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -248,21 +297,35 @@ export default function Students() {
                 <form onSubmit={handleAddStudent} className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" placeholder="e.g. Abdullah Khan" required />
+                    <Input 
+                      id="name" 
+                      placeholder="e.g. Abdullah Khan" 
+                      required 
+                      value={newStudentName}
+                      onChange={(e) => setNewStudentName(e.target.value)}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="roll">Roll No</Label>
-                      <Input id="roll" type="number" placeholder="e.g. 45" required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="class">Class</Label>
-                      <Select>
+                      <Label htmlFor="gender">Gender</Label>
+                      <Select value={newStudentGender} onValueChange={(v) => setNewStudentGender(v as 'M' | 'F')}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
                         <SelectContent>
-                          {CLASSES.map(cls => (
+                          <SelectItem value="M">Male</SelectItem>
+                          <SelectItem value="F">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="class">Class</Label>
+                      <Select value={newStudentClass} onValueChange={setNewStudentClass}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {classes.map(cls => (
                             <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -290,33 +353,40 @@ export default function Students() {
         />
       </div>
 
-      <div className="space-y-2">
-        {filteredStudents.map((student) => (
-          <div key={student.id} className="flex items-center space-x-4 p-3 bg-card border border-border rounded-2xl hover:bg-secondary/30 transition-colors group">
-            <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-secondary-foreground">
-              {student.rollNo}
-            </div>
-            <div className="flex-1">
-              <h4 className="font-medium">{student.name}</h4>
-              <p className="text-xs text-muted-foreground">Class {student.classId} • ID: {student.id}</p>
-            </div>
-            
-            {isAdmin && (
-              <div className="flex space-x-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                <button className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">
-                  <Edit2 size={16} />
-                </button>
-                <button 
-                  onClick={() => handleDelete(student.id, student.name)}
-                  className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
-                >
-                  <Trash2 size={16} />
-                </button>
+      {filteredStudents.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <p>No students found.</p>
+          {isAdmin && <p className="text-sm mt-2">Add students using the + button above.</p>}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filteredStudents.map((student) => (
+            <div key={student.id} className="flex items-center space-x-4 p-3 bg-card border border-border rounded-2xl hover:bg-secondary/30 transition-colors group">
+              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-secondary-foreground">
+                {student.rollNo}
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+              <div className="flex-1">
+                <h4 className="font-medium">{student.name}</h4>
+                <p className="text-xs text-muted-foreground">Class {student.classId} • ID: {student.id}</p>
+              </div>
+              
+              {isAdmin && (
+                <div className="flex space-x-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <button className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">
+                    <Edit2 size={16} />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(student.id, student.name)}
+                    className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

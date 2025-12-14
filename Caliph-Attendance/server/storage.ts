@@ -108,6 +108,15 @@ export class DatabaseStorage {
     const result = await db.select({ count: count() }).from(students).where(eq(students.classId, classId));
     return result[0]?.count ?? 0;
   }
+
+  async getMaxRollNoByClass(classId: string): Promise<number> {
+    const result = await db.select({ rollNo: students.rollNo })
+      .from(students)
+      .where(eq(students.classId, classId))
+      .orderBy(students.rollNo);
+    if (result.length === 0) return 0;
+    return Math.max(...result.map(r => r.rollNo));
+  }
 }
 
 export const storage = new DatabaseStorage();
