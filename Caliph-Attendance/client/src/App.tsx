@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import logo from '@assets/logo-social_1765305531532.png';
 import { AuthProvider } from "@/lib/auth";
+import { ThemeProvider } from "@/lib/theme";
 
 // Pages
 import Home from "@/pages/Home";
@@ -75,21 +76,23 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AnimatePresence mode="wait">
-          {showSplash ? (
-            <SplashScreen key="splash" onComplete={() => setShowSplash(false)} />
-          ) : (
-            <motion.div 
-              key="app"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Toaster />
-              <Router />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <ThemeProvider>
+          <AnimatePresence mode="wait">
+            {showSplash ? (
+              <SplashScreen key="splash" onComplete={() => setShowSplash(false)} />
+            ) : (
+              <motion.div 
+                key="app"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+              >
+                <Toaster />
+                <Router />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </ThemeProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

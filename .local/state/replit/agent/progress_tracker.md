@@ -13,3 +13,5 @@
 [x] 13. Add edit functionality for Students (admin can edit student name, class, gender)
 [x] 14. Install npm dependencies and set up database for Replit environment migration
 [x] 15. Push database schema to create missing tables (classes, students, teachers, attendance)
+[x] 16. Add admin settings - Theme color customization
+[x] 17. Add admin settings - PIN change option
