@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, Users, ChevronRight, Check, Trash2, Download } from "lucide-react";
-import { CLASSES } from "@/lib/mockData";
+import { ArrowLeft, Users, ChevronRight, Check, Trash2, Download, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { getPrayerAttendance, generatePrayerSummaryMessage, clearPrayerAttendance, getSummaryLines } from "@/lib/attendanceStore";
 import { jsPDF } from "jspdf";
+
+interface ClassData {
+  id: string;
+  name: string;
+  studentCount: number;
+}
 
 function WhatsAppIcon({ className = "" }: { className?: string }) {
   return (
@@ -18,10 +23,29 @@ export default function ClassSelect() {
   const [match, params] = useRoute("/select-class/:type");
   const type = params?.type || "Fajr";
   const [attendanceData, setAttendanceData] = useState<Record<string, any>>({});
+  const [classes, setClasses] = useState<ClassData[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setAttendanceData(getPrayerAttendance(type));
   }, [type]);
+
+  useEffect(() => {
+    async function fetchClasses() {
+      try {
+        const response = await fetch('/api/classes');
+        if (response.ok) {
+          const data = await response.json();
+          setClasses(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch classes:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchClasses();
+  }, []);
 
   const shareOnWhatsApp = () => {
     const message = generatePrayerSummaryMessage(type);
@@ -128,40 +152,52 @@ export default function ClassSelect() {
       </div>
 
       <div className="grid gap-3">
-        {CLASSES.map((cls, idx) => {
-          const classAttendance = attendanceData[cls.id];
-          const isRecorded = !!classAttendance;
-          
-          return (
-            <motion.div
-              key={cls.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-            >
-              <Link href={`/attendance/${type}/${cls.id}`} className="flex items-center justify-between p-5 bg-card border border-border rounded-2xl shadow-sm hover:shadow-md transition-all active:bg-secondary/50 group">
-                  <div className="flex items-center space-x-4">
-                    <div className={`p-3 rounded-xl ${isRecorded ? 'bg-emerald-100 text-emerald-600' : 'bg-primary/10 text-primary'}`}>
-                      {isRecorded ? <Check size={22} /> : <Users size={22} />}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : classes.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>No classes created yet</p>
+            <p className="text-sm">Ask admin to create classes first</p>
+          </div>
+        ) : (
+          classes.map((cls, idx) => {
+            const classAttendance = attendanceData[cls.id];
+            const isRecorded = !!classAttendance;
+            
+            return (
+              <motion.div
+                key={cls.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+              >
+                <Link href={`/attendance/${type}/${cls.id}`} className="flex items-center justify-between p-5 bg-card border border-border rounded-2xl shadow-sm hover:shadow-md transition-all active:bg-secondary/50 group">
+                    <div className="flex items-center space-x-4">
+                      <div className={`p-3 rounded-xl ${isRecorded ? 'bg-emerald-100 text-emerald-600' : 'bg-primary/10 text-primary'}`}>
+                        {isRecorded ? <Check size={22} /> : <Users size={22} />}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">{cls.name}</h3>
+                        {isRecorded ? (
+                          <p className="text-sm text-emerald-600">
+                            {classAttendance.absentStudents.length === 0 
+                              ? "All present" 
+                              : `${classAttendance.absentStudents.length} absent`}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">{cls.studentCount} Students</p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">{cls.name}</h3>
-                      {isRecorded ? (
-                        <p className="text-sm text-emerald-600">
-                          {classAttendance.absentStudents.length === 0 
-                            ? "All present" 
-                            : `${classAttendance.absentStudents.length} absent`}
-                        </p>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">{cls.students} Students</p>
-                      )}
-                    </div>
-                  </div>
-                  <ChevronRight className="text-muted-foreground group-hover:text-primary transition-colors" size={20} />
-              </Link>
-            </motion.div>
-          );
-        })}
+                    <ChevronRight className="text-muted-foreground group-hover:text-primary transition-colors" size={20} />
+                </Link>
+              </motion.div>
+            );
+          })
+        )}
       </div>
     </div>
   );
