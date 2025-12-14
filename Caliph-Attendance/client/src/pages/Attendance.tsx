@@ -1,12 +1,25 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, Check, X, Search, Save, RotateCcw, CheckCircle2 } from "lucide-react";
-import { STUDENTS, CLASSES } from "@/lib/mockData";
+import { ArrowLeft, Check, X, Search, Save, RotateCcw, CheckCircle2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { saveClassAttendance } from "@/lib/attendanceStore";
 import { useAuth } from "@/lib/auth";
+
+interface Student {
+  id: string;
+  name: string;
+  rollNo: number;
+  classId: string;
+  gender: 'M' | 'F';
+}
+
+interface ClassData {
+  id: string;
+  name: string;
+  studentCount: number;
+}
 
 export default function Attendance() {
   const [match, params] = useRoute("/attendance/:type/:classId");
@@ -15,10 +28,11 @@ export default function Attendance() {
   const { isAdmin } = useAuth();
   
   const type = params?.type || "Fajr";
-  const classId = params?.classId || "S1A";
+  const classId = params?.classId || "";
   
-  const classData = CLASSES.find(c => c.id === classId);
-  const students = STUDENTS[classId] || [];
+  const [classData, setClassData] = useState<ClassData | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [attendance, setAttendance] = useState<Record<string, 'present' | 'absent'>>({});
   const [absentReasons, setAbsentReasons] = useState<Record<string, string>>({});
@@ -35,11 +49,36 @@ export default function Attendance() {
     hasSavedRef.current = hasSaved;
   }, [attendance, absentReasons, hasSaved]);
 
-  // Initialize all as present by default on mount
   useEffect(() => {
-    const initial: Record<string, 'present' | 'absent'> = {};
-    students.forEach(s => initial[s.id] = 'present');
-    setAttendance(initial);
+    async function fetchData() {
+      if (!classId) return;
+      setLoading(true);
+      try {
+        const [classesRes, studentsRes] = await Promise.all([
+          fetch('/api/classes'),
+          fetch(`/api/students/class/${classId}`)
+        ]);
+        
+        if (classesRes.ok) {
+          const classes = await classesRes.json();
+          const cls = classes.find((c: ClassData) => c.id === classId);
+          setClassData(cls || null);
+        }
+        
+        if (studentsRes.ok) {
+          const studentsData = await studentsRes.json();
+          setStudents(studentsData);
+          const initial: Record<string, 'present' | 'absent'> = {};
+          studentsData.forEach((s: Student) => initial[s.id] = 'present');
+          setAttendance(initial);
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
     setHasSaved(false);
   }, [classId]);
   
@@ -204,62 +243,73 @@ export default function Attendance() {
 
       {/* Student List */}
       <div className="p-4 space-y-2">
-        {students.map((student) => {
-          const isPresent = attendance[student.id] === 'present';
-          return (
-            <motion.div 
-              key={student.id} 
-              layout
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className={cn(
-                "p-3 rounded-2xl border transition-all duration-200",
-                isPresent 
-                  ? "bg-card border-border" 
-                  : "bg-red-50/50 border-red-100 dark:bg-red-950/20 dark:border-red-900/50"
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm",
-                    isPresent ? "bg-secondary text-foreground" : "bg-red-100 text-red-700"
-                  )}>
-                    {student.rollNo}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : students.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <p>No students in this class</p>
+            <p className="text-sm">Add students from the admin panel</p>
+          </div>
+        ) : (
+          students.map((student) => {
+            const isPresent = attendance[student.id] === 'present';
+            return (
+              <motion.div 
+                key={student.id} 
+                layout
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className={cn(
+                  "p-3 rounded-2xl border transition-all duration-200",
+                  isPresent 
+                    ? "bg-card border-border" 
+                    : "bg-red-50/50 border-red-100 dark:bg-red-950/20 dark:border-red-900/50"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm",
+                      isPresent ? "bg-secondary text-foreground" : "bg-red-100 text-red-700"
+                    )}>
+                      {student.rollNo}
+                    </div>
+                    <div>
+                      <h4 className={cn("font-medium", !isPresent && "text-red-700")}>{student.name}</h4>
+                      <p className="text-xs text-muted-foreground">ID: {student.id}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className={cn("font-medium", !isPresent && "text-red-700")}>{student.name}</h4>
-                    <p className="text-xs text-muted-foreground">ID: {student.id}</p>
-                  </div>
-                </div>
 
-                <button 
-                  onClick={() => toggleStatus(student.id)}
-                  className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-sm active:scale-90",
-                    isPresent 
-                      ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200" 
-                      : "bg-red-100 text-red-600 hover:bg-red-200"
-                  )}
-                >
-                  {isPresent ? <Check size={24} strokeWidth={3} /> : <X size={24} strokeWidth={3} />}
-                </button>
-              </div>
-              
-              {!isPresent && (
-                <div className="mt-2 ml-14">
-                  <input
-                    type="text"
-                    placeholder="Reason (optional): sick, leave, etc."
-                    value={absentReasons[student.id] || ""}
-                    onChange={(e) => updateReason(student.id, e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-white border border-red-200 rounded-lg focus:outline-none focus:border-red-400"
-                  />
+                  <button 
+                    onClick={() => toggleStatus(student.id)}
+                    className={cn(
+                      "w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-sm active:scale-90",
+                      isPresent 
+                        ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200" 
+                        : "bg-red-100 text-red-600 hover:bg-red-200"
+                    )}
+                  >
+                    {isPresent ? <Check size={24} strokeWidth={3} /> : <X size={24} strokeWidth={3} />}
+                  </button>
                 </div>
-              )}
-            </motion.div>
-          );
-        })}
+                
+                {!isPresent && (
+                  <div className="mt-2 ml-14">
+                    <input
+                      type="text"
+                      placeholder="Reason (optional): sick, leave, etc."
+                      value={absentReasons[student.id] || ""}
+                      onChange={(e) => updateReason(student.id, e.target.value)}
+                      className="w-full px-3 py-2 text-sm bg-white border border-red-200 rounded-lg focus:outline-none focus:border-red-400"
+                    />
+                  </div>
+                )}
+              </motion.div>
+            );
+          })
+        )}
       </div>
 
       {/* Floating Save Button */}
