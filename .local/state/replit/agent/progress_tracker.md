@@ -12,3 +12,4 @@
 [x] 12. Add edit functionality for Classes (admin can edit class name)
 [x] 13. Add edit functionality for Students (admin can edit student name, class, gender)
 [x] 14. Install npm dependencies and set up database for Replit environment migration
+[x] 15. Push database schema to create missing tables (classes, students, teachers, attendance)
