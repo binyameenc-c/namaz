@@ -4,6 +4,7 @@ import { ArrowLeft, Users, ChevronRight, Check, Trash2, Download, Loader2 } from
 import { motion } from "framer-motion";
 import { getPrayerAttendance, generatePrayerSummaryMessage, clearPrayerAttendance, getSummaryLines } from "@/lib/attendanceStore";
 import { jsPDF } from "jspdf";
+import { useAuth } from "@/lib/auth";
 
 interface ClassData {
   id: string;
@@ -25,6 +26,7 @@ export default function ClassSelect() {
   const [attendanceData, setAttendanceData] = useState<Record<string, any>>({});
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
     setAttendanceData(getPrayerAttendance(type));
@@ -139,7 +141,7 @@ export default function ClassSelect() {
           >
             <Download size={20} />
           </button>
-          {recordedClassCount > 0 && (
+          {isAdmin && recordedClassCount > 0 && (
             <button
               onClick={handleClearAttendance}
               className="p-3 bg-secondary text-muted-foreground hover:text-red-500 rounded-full transition-colors"
