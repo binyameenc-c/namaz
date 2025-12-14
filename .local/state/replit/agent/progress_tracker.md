@@ -6,3 +6,4 @@
 [x] 6. Create PostgreSQL database with teachers table (limit 5)
 [x] 7. Add teacher login/registration system
 [x] 8. Build the Android APK and provide instructions
+[x] 9. Reinstall npm dependencies after migration
