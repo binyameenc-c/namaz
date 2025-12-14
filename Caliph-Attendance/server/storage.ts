@@ -1,38 +1,53 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { eq, count } from "drizzle-orm";
+import pg from "pg";
+import { teachers, type Teacher, type InsertTeacher } from "@shared/schema";
 
-// modify the interface with any CRUD methods
-// you might need
+const MAX_TEACHERS = 5;
+
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+export const db = drizzle(pool);
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getTeacher(id: string): Promise<Teacher | undefined>;
+  getTeacherByEmail(email: string): Promise<Teacher | undefined>;
+  createTeacher(teacher: InsertTeacher): Promise<Teacher | { error: string }>;
+  getAllTeachers(): Promise<Teacher[]>;
+  getTeacherCount(): Promise<number>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async getTeacher(id: string): Promise<Teacher | undefined> {
+    const result = await db.select().from(teachers).where(eq(teachers.id, id));
+    return result[0];
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getTeacherByEmail(email: string): Promise<Teacher | undefined> {
+    const result = await db.select().from(teachers).where(eq(teachers.email, email));
+    return result[0];
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async createTeacher(insertTeacher: InsertTeacher): Promise<Teacher | { error: string }> {
+    const currentCount = await this.getTeacherCount();
+    if (currentCount >= MAX_TEACHERS) {
+      return { error: `Maximum of ${MAX_TEACHERS} teachers allowed. Please contact administrator.` };
+    }
+
+    const result = await db.insert(teachers).values(insertTeacher).returning();
+    return result[0];
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async getAllTeachers(): Promise<Teacher[]> {
+    return await db.select().from(teachers);
+  }
+
+  async getTeacherCount(): Promise<number> {
+    const result = await db.select({ count: count() }).from(teachers);
+    return result[0]?.count ?? 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

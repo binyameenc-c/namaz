@@ -7,7 +7,8 @@ import Layout from "@/components/Layout";
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import logo from '@assets/logo-social_1765305531532.png';
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import Login from "@/pages/Login";
 
 // Pages
 import Home from "@/pages/Home";
@@ -69,27 +70,44 @@ function Router() {
   );
 }
 
-function App() {
+function AppContent() {
   const [showSplash, setShowSplash] = useState(true);
+  const { isAuthenticated, login } = useAuth();
 
+  return (
+    <AnimatePresence mode="wait">
+      {showSplash ? (
+        <SplashScreen key="splash" onComplete={() => setShowSplash(false)} />
+      ) : !isAuthenticated ? (
+        <motion.div 
+          key="login"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Toaster />
+          <Login onLogin={login} />
+        </motion.div>
+      ) : (
+        <motion.div 
+          key="app"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Toaster />
+          <Router />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AnimatePresence mode="wait">
-          {showSplash ? (
-            <SplashScreen key="splash" onComplete={() => setShowSplash(false)} />
-          ) : (
-            <motion.div 
-              key="app"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Toaster />
-              <Router />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <AppContent />
       </AuthProvider>
     </QueryClientProvider>
   );

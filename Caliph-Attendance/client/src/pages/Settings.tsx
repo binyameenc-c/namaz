@@ -1,6 +1,9 @@
 import { Bell, Moon, Shield, Info, ChevronRight, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export default function Settings() {
+  const { logout, teacher } = useAuth();
+
   return (
     <div className="p-6 min-h-screen bg-background space-y-8">
       <header className="pt-6">
@@ -9,6 +12,16 @@ export default function Settings() {
       </header>
 
       <div className="space-y-6">
+        {teacher && (
+          <section className="space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider pl-1">Account</h3>
+            <div className="bg-card border border-border rounded-3xl overflow-hidden p-4">
+              <p className="font-medium">{teacher.name}</p>
+              <p className="text-sm text-muted-foreground">{teacher.email}</p>
+            </div>
+          </section>
+        )}
+
         <section className="space-y-3">
           <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider pl-1">General</h3>
           <div className="bg-card border border-border rounded-3xl overflow-hidden">
@@ -59,7 +72,10 @@ export default function Settings() {
           </div>
         </section>
 
-        <button className="w-full p-4 flex items-center justify-center space-x-2 text-red-600 bg-red-50 border border-red-100 rounded-2xl font-medium mt-8 hover:bg-red-100 transition-colors">
+        <button 
+          onClick={logout}
+          className="w-full p-4 flex items-center justify-center space-x-2 text-red-600 bg-red-50 border border-red-100 rounded-2xl font-medium mt-8 hover:bg-red-100 transition-colors"
+        >
           <LogOut size={18} />
           <span>Sign Out</span>
         </button>
