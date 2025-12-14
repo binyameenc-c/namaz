@@ -61,6 +61,11 @@ export class DatabaseStorage {
     return result[0];
   }
 
+  async updateClass(id: string, data: { name: string }): Promise<Class | undefined> {
+    const result = await db.update(classes).set(data).where(eq(classes.id, id)).returning();
+    return result[0];
+  }
+
   async deleteClass(id: string): Promise<void> {
     await db.delete(students).where(eq(students.classId, id));
     await db.delete(classes).where(eq(classes.id, id));

@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
-import { Users, ChevronRight, Plus, Trash2, Loader2 } from "lucide-react";
+import { Users, ChevronRight, Plus, Trash2, Loader2, Pencil } from "lucide-react";
 import { api, type ClassGroup } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,9 @@ export default function Classes() {
   const [loading, setLoading] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newClassName, setNewClassName] = useState("");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingClass, setEditingClass] = useState<ClassGroup | null>(null);
+  const [editClassName, setEditClassName] = useState("");
 
   const fetchClasses = async () => {
     try {
@@ -74,6 +77,36 @@ export default function Classes() {
       toast({
         title: "Error",
         description: "Failed to delete class",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openEditDialog = (cls: ClassGroup) => {
+    setEditingClass(cls);
+    setEditClassName(cls.name);
+    setEditDialogOpen(true);
+  };
+
+  const handleEditClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingClass || !editClassName) return;
+
+    try {
+      await api.updateClass(editingClass.id, editClassName);
+      setEditDialogOpen(false);
+      setEditingClass(null);
+      setEditClassName("");
+      toast({
+        title: "Class Updated",
+        description: "Class name has been updated successfully.",
+        className: "bg-emerald-50 border-emerald-200 text-emerald-900",
+      });
+      fetchClasses();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update class",
         variant: "destructive",
       });
     }
@@ -163,6 +196,12 @@ export default function Classes() {
               {isAdmin ? (
                 <div className="flex items-center space-x-2">
                   <button 
+                    onClick={() => openEditDialog(cls)}
+                    className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button 
                     onClick={() => handleDeleteClass(cls.id, cls.name)}
                     className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
                   >
@@ -176,6 +215,27 @@ export default function Classes() {
           ))}
         </div>
       )}
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Class</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditClass} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="editClassName">Class Name</Label>
+              <Input 
+                id="editClassName" 
+                value={editClassName}
+                onChange={(e) => setEditClassName(e.target.value)}
+                placeholder="e.g. S4-A" 
+                required 
+              />
+            </div>
+            <Button type="submit" className="w-full bg-primary hover:bg-emerald-700">Save Changes</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

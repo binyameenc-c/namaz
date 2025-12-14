@@ -7,3 +7,7 @@
 [x] 7. Add teacher login/registration system
 [x] 8. Build the Android APK and provide instructions
 [x] 9. Set up PostgreSQL database and push schema
+[x] 10. Fix ClassSelect to fetch classes from database API instead of mock data
+[x] 11. Fix Attendance page to fetch students from database API instead of mock data
+[x] 12. Add edit functionality for Classes (admin can edit class name)
+[x] 13. Add edit functionality for Students (admin can edit student name, class, gender)

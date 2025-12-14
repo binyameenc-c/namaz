@@ -34,6 +34,16 @@ export const api = {
     return response.json();
   },
 
+  async updateClass(id: string, name: string): Promise<ClassGroup> {
+    const response = await fetch(`/api/classes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) throw new Error('Failed to update class');
+    return response.json();
+  },
+
   async deleteClass(id: string): Promise<void> {
     const response = await fetch(`/api/classes/${id}`, { method: 'DELETE' });
     if (!response.ok) throw new Error('Failed to delete class');

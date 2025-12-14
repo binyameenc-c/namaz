@@ -26,6 +26,11 @@ export default function Students() {
   const [newStudentName, setNewStudentName] = useState("");
   const [newStudentClass, setNewStudentClass] = useState("");
   const [newStudentGender, setNewStudentGender] = useState<'M' | 'F'>('M');
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editStudentName, setEditStudentName] = useState("");
+  const [editStudentClass, setEditStudentClass] = useState("");
+  const [editStudentGender, setEditStudentGender] = useState<'M' | 'F'>('M');
 
   const fetchData = async () => {
     try {
@@ -202,6 +207,41 @@ export default function Students() {
     }
   };
 
+  const openEditStudentDialog = (student: Student) => {
+    setEditingStudent(student);
+    setEditStudentName(student.name);
+    setEditStudentClass(student.classId);
+    setEditStudentGender(student.gender);
+    setEditDialogOpen(true);
+  };
+
+  const handleEditStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStudent) return;
+
+    try {
+      await api.updateStudent(editingStudent.id, {
+        name: editStudentName,
+        classId: editStudentClass,
+        gender: editStudentGender
+      });
+      setEditDialogOpen(false);
+      setEditingStudent(null);
+      toast({
+        title: "Student Updated",
+        description: "Student details have been updated successfully.",
+        className: "bg-emerald-50 border-emerald-200 text-emerald-900",
+      });
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update student",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6 min-h-screen bg-background flex items-center justify-center">
@@ -372,7 +412,10 @@ export default function Students() {
               
               {isAdmin && (
                 <div className="flex space-x-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                  <button className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">
+                  <button 
+                    onClick={() => openEditStudentDialog(student)}
+                    className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
+                  >
                     <Edit2 size={16} />
                   </button>
                   <button 
@@ -387,6 +430,54 @@ export default function Students() {
           ))}
         </div>
       )}
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Student</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditStudent} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="editName">Full Name</Label>
+              <Input 
+                id="editName" 
+                value={editStudentName}
+                onChange={(e) => setEditStudentName(e.target.value)}
+                placeholder="e.g. Abdullah Khan" 
+                required 
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="editGender">Gender</Label>
+                <Select value={editStudentGender} onValueChange={(v) => setEditStudentGender(v as 'M' | 'F')}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="M">Male</SelectItem>
+                    <SelectItem value="F">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editClass">Class</Label>
+                <Select value={editStudentClass} onValueChange={setEditStudentClass}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map(cls => (
+                      <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button type="submit" className="w-full bg-primary hover:bg-emerald-700">Save Changes</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

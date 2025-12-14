@@ -121,6 +121,24 @@ export async function registerRoutes(
     }
   });
 
+  // Update a class
+  app.put("/api/classes/:id", async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name) {
+        return res.status(400).json({ error: "Class name is required" });
+      }
+      const updated = await storage.updateClass(req.params.id, { name });
+      if (!updated) {
+        return res.status(404).json({ error: "Class not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Update class error:", error);
+      res.status(500).json({ error: "Failed to update class" });
+    }
+  });
+
   // Delete a class
   app.delete("/api/classes/:id", async (req, res) => {
     try {
