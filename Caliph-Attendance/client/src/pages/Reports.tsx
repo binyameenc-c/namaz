@@ -1,23 +1,32 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Trash2, X, Edit2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getDailySummary, generateFullDailyReport, getClassSummariesByPrayer, getAttendanceStore, clearAllAttendance, type DailySummary, type ClassSummaryByPrayer } from "@/lib/attendanceStore";
+import { getDailySummary, generateFullDailyReport, getClassSummariesByPrayer, getAttendanceStore, clearAllAttendance, clearPrayerAttendance, type DailySummary, type ClassSummaryByPrayer } from "@/lib/attendanceStore";
 import { jsPDF } from "jspdf";
 import { useAuth } from "@/lib/auth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useLocation } from "wouter";
 
 const TABS = ['Daily', 'Weekly', 'Monthly'];
+const PRAYERS = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState('Daily');
   const { toast } = useToast();
   const { isAdmin } = useAuth();
+  const [, setLocation] = useLocation();
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [classSummaries, setClassSummaries] = useState<ClassSummaryByPrayer[]>([]);
+  const [clearPrayerDialogOpen, setClearPrayerDialogOpen] = useState(false);
 
-  useEffect(() => {
+  const refreshData = () => {
     setSummary(getDailySummary());
     setClassSummaries(getClassSummariesByPrayer());
+  };
+
+  useEffect(() => {
+    refreshData();
   }, []);
 
   const handleDownload = () => {
@@ -99,14 +108,29 @@ export default function Reports() {
   const handleClearAll = () => {
     if (confirm("Are you sure you want to clear ALL attendance data? This cannot be undone.")) {
       clearAllAttendance();
-      setSummary(getDailySummary());
-      setClassSummaries(getClassSummariesByPrayer());
+      refreshData();
       toast({
         title: "Attendance Cleared",
         description: "All attendance data has been cleared.",
         variant: "destructive",
       });
     }
+  };
+
+  const handleClearPrayer = (prayer: string) => {
+    if (confirm(`Are you sure you want to clear ${prayer} attendance?`)) {
+      clearPrayerAttendance(prayer);
+      refreshData();
+      toast({
+        title: `${prayer} Cleared`,
+        description: `${prayer} attendance data has been cleared.`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditAttendance = (prayer: string, classId: string) => {
+    setLocation(`/attendance/${prayer}/${classId}`);
   };
 
   const hasData = summary && summary.totalStudents > 0;
@@ -137,7 +161,7 @@ export default function Reports() {
       </div>
 
       {/* Action Buttons */}
-      <div className={`grid gap-4 ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
+      <div className="grid grid-cols-2 gap-4">
         <button 
           onClick={handleDownload}
           className="flex items-center justify-center space-x-2 p-4 bg-card border border-border rounded-2xl shadow-sm active:scale-95 transition-transform hover:bg-secondary/50"
@@ -163,19 +187,30 @@ export default function Reports() {
           </div>
           <span className="font-semibold text-sm text-emerald-800">Share</span>
         </button>
-
-        {isAdmin && (
-          <button 
-            onClick={handleClearAll}
-            className="flex items-center justify-center space-x-2 p-4 bg-red-50 border border-red-100 rounded-2xl shadow-sm active:scale-95 transition-transform hover:bg-red-100"
-          >
-            <div className="p-2 bg-red-500 text-white rounded-full">
-              <Trash2 size={18} />
-            </div>
-            <span className="font-semibold text-sm text-red-800">Clear All</span>
-          </button>
-        )}
       </div>
+
+      {/* Admin Controls */}
+      {isAdmin && (
+        <div className="space-y-4">
+          <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Admin Controls</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button 
+              onClick={() => setClearPrayerDialogOpen(true)}
+              className="flex items-center justify-center space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-xl shadow-sm active:scale-95 transition-transform hover:bg-amber-100"
+            >
+              <Trash2 size={16} className="text-amber-600" />
+              <span className="font-medium text-sm text-amber-800">Clear by Prayer</span>
+            </button>
+            <button 
+              onClick={handleClearAll}
+              className="flex items-center justify-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-xl shadow-sm active:scale-95 transition-transform hover:bg-red-100"
+            >
+              <Trash2 size={16} className="text-red-600" />
+              <span className="font-medium text-sm text-red-800">Clear All</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Overview Card */}
       <div className="grid grid-cols-2 gap-4">
@@ -191,18 +226,29 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Class Summary by Prayer */}
+      {/* Class Summary by Prayer with Edit/Delete */}
       {classSummaries.length > 0 && (
         <div className="space-y-4">
           {classSummaries.map((prayerSummary) => (
             <div key={prayerSummary.prayer} className="bg-card border border-border rounded-2xl p-4 shadow-sm">
-              <h3 className="font-semibold text-lg mb-3">{prayerSummary.prayer}</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-lg">{prayerSummary.prayer}</h3>
+                {isAdmin && (
+                  <button
+                    onClick={() => handleClearPrayer(prayerSummary.prayer)}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title={`Clear ${prayerSummary.prayer} attendance`}
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 {prayerSummary.classes.map((cls) => (
                   <div 
                     key={cls.className} 
                     className={cn(
-                      "flex items-center justify-between p-3 rounded-xl",
+                      "flex items-center justify-between p-3 rounded-xl relative group",
                       cls.percentage === 100 
                         ? "bg-emerald-50 border border-emerald-200" 
                         : cls.percentage >= 90 
@@ -213,18 +259,36 @@ export default function Reports() {
                     )}
                   >
                     <span className="font-medium text-sm">{cls.className}</span>
-                    <span className={cn(
-                      "font-bold text-sm",
-                      cls.percentage === 100 
-                        ? "text-emerald-600" 
-                        : cls.percentage >= 90 
-                          ? "text-green-600"
-                          : cls.percentage >= 80
-                            ? "text-amber-600"
-                            : "text-red-600"
-                    )}>
-                      {cls.percentage}%
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "font-bold text-sm",
+                        cls.percentage === 100 
+                          ? "text-emerald-600" 
+                          : cls.percentage >= 90 
+                            ? "text-green-600"
+                            : cls.percentage >= 80
+                              ? "text-amber-600"
+                              : "text-red-600"
+                      )}>
+                        {cls.percentage}%
+                      </span>
+                      {isAdmin && (
+                        <button
+                          onClick={() => {
+                            const store = getAttendanceStore();
+                            const prayerStore = store[prayerSummary.prayer] || {};
+                            const classEntry = Object.entries(prayerStore).find(([, data]) => data.className === cls.className);
+                            if (classEntry) {
+                              handleEditAttendance(prayerSummary.prayer, classEntry[0]);
+                            }
+                          }}
+                          className="p-1 text-blue-500 hover:bg-blue-100 rounded transition-colors"
+                          title="Edit attendance"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -241,7 +305,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Recent Activity */}
+      {/* Recent Activity with Edit/Delete */}
       {summary && summary.recentLogs.length > 0 && (
         <div className="space-y-4">
           <h3 className="font-semibold px-1">Recent Logs</h3>
@@ -254,11 +318,22 @@ export default function Reports() {
                     {new Date(log.timestamp).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
-                <div className="text-right">
-                  <span className="text-sm font-bold text-emerald-600">{log.presentCount}</span>
-                  <span className="text-sm text-muted-foreground">/{log.totalStudents}</span>
-                  {log.absentCount > 0 && (
-                    <p className="text-xs text-red-500">{log.absentCount} absent</p>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className="text-sm font-bold text-emerald-600">{log.presentCount}</span>
+                    <span className="text-sm text-muted-foreground">/{log.totalStudents}</span>
+                    {log.absentCount > 0 && (
+                      <p className="text-xs text-red-500">{log.absentCount} absent</p>
+                    )}
+                  </div>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleEditAttendance(log.prayer, log.classId)}
+                      className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Edit attendance"
+                    >
+                      <Edit2 size={16} />
+                    </button>
                   )}
                 </div>
               </div>
@@ -266,6 +341,31 @@ export default function Reports() {
           </div>
         </div>
       )}
+
+      {/* Clear by Prayer Dialog */}
+      <Dialog open={clearPrayerDialogOpen} onOpenChange={setClearPrayerDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Clear Attendance by Prayer</DialogTitle>
+            <DialogDescription>Select a prayer to clear its attendance data</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-3 pt-4">
+            {PRAYERS.map((prayer) => (
+              <button
+                key={prayer}
+                onClick={() => {
+                  handleClearPrayer(prayer);
+                  setClearPrayerDialogOpen(false);
+                }}
+                className="flex items-center justify-between p-4 bg-secondary/50 hover:bg-red-50 border border-border hover:border-red-200 rounded-xl transition-all"
+              >
+                <span className="font-medium">{prayer}</span>
+                <Trash2 size={18} className="text-red-500" />
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
