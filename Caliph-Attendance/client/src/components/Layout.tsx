@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, BarChart2, GraduationCap, Users } from "lucide-react";
+import { Home, BarChart2, GraduationCap, Users, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -10,6 +10,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { icon: BarChart2, label: "Summary", href: "/reports" },
     { icon: GraduationCap, label: "Classes", href: "/classes" },
     { icon: Users, label: "Students", href: "/students" },
+    { icon: Settings, label: "Settings", href: "/settings" },
   ];
 
   return (
