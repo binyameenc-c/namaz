@@ -8,7 +8,7 @@ import {
   type Student, type InsertStudent 
 } from "@shared/schema";
 
-const MAX_TEACHERS = 5;
+const MAX_TEACHERS = 10;
 
 const pool = new pg.Pool({
   connectionString: process.env.EXTERNAL_DATABASE_URL,

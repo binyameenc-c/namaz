@@ -16,3 +16,4 @@
 [x] 16. Add admin settings - Theme color customization
 [x] 17. Add admin settings - PIN change option
 [x] 18. Connected external Render PostgreSQL database with SSL support
+[x] 19. Increased teacher limit from 5 to 10 (supports 1 principal + 9 teachers)
