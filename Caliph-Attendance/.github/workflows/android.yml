@@ -20,6 +20,10 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Set up Node.js 18
         uses: actions/setup-node@v4
@@ -28,6 +32,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Build web assets
+        run: npm run build
 
       - name: Sync Capacitor Android
         run: npx cap sync android
