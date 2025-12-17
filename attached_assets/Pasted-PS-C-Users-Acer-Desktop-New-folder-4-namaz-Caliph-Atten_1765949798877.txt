@@ -1,0 +1,42 @@
+PS C:\Users\Acer\Desktop\New folder (4)\namaz\Caliph-Attendance> npx cap sync android
+>> cd android
+>> .\gradlew.bat assembleDebug
+√ Copying web assets from public to android\app\src\main\assets\public in 66.48ms
+√ Creating capacitor.config.json in android\app\src\main\assets in 4.30ms
+√ copy android in 264.65ms
+√ Updating Android plugins in 56.49ms
+√ update android in 336.22ms
+[info] Sync finished in 1.387s
+
+> Configure project :app
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Configure project :capacitor-cordova-android-plugins
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Task :app:checkDebugAarMetadata FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:checkDebugAarMetadata'.
+> Could not resolve all files for configuration ':app:debugRuntimeClasspath'.
+   > Could not find com.capacitorjs:android:6.1.2.
+     Searched in the following locations:
+       - https://dl.google.com/dl/android/maven2/com/capacitorjs/android/6.1.2/android-6.1.2.pom
+       - https://repo.maven.apache.org/maven2/com/capacitorjs/android/6.1.2/android-6.1.2.pom
+       - file:/C:/Users/Acer/Desktop/New%20folder%20(4)/namaz/Caliph-Attendance/android/capacitor-cordova-android-plugins/src/main/libs/android-6.1.2.jar
+       - file:/C:/Users/Acer/Desktop/New%20folder%20(4)/namaz/Caliph-Attendance/android/capacitor-cordova-android-plugins/src/main/libs/android.jar
+       - file:/C:/Users/Acer/Desktop/New%20folder%20(4)/namaz/Caliph-Attendance/android/app/libs/android-6.1.2.jar
+       - file:/C:/Users/Acer/Desktop/New%20folder%20(4)/namaz/Caliph-Attendance/android/app/libs/android.jar  
+     Required by:
+         project :app
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 57s
+4 actionable tasks: 4 executed
