@@ -41,4 +41,4 @@ build = ["npm", "run", "build"]
 [userenv]
 
 [userenv.shared]
-EXTERNAL_DATABASE_URL = "postgresql://caliph_namaz_user:iYCze0gVzEi79XzZNiSCQLG8IsKfBvQN@dpg-d50im4ngi27c73am89s0-a.singapore-postgres.render.com/caliph_namaz?sslmode=require"
+EXTERNAL_DATABASE_URL = "postgresql://caliph_namaz_user:iYCze0gVzEi79XzZNiSCQLG8IsKfBvQN@dpg-d50im4ngi27c73am89s0-a/caliph_namaz"
