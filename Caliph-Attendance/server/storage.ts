@@ -11,7 +11,7 @@ import {
 const MAX_TEACHERS = 10;
 
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL || process.env.EXTERNAL_DATABASE_URL,
+  connectionString: process.env.EXTERNAL_DATABASE_URL || process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
