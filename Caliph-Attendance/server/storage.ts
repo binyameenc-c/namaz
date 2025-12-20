@@ -10,8 +10,11 @@ import {
 
 const MAX_TEACHERS = 10;
 
+// Render PostgreSQL Database Configuration
+const RENDER_DATABASE_URL = "postgresql://caliph_namaz_user:iYCze0gVzEi79XzZNiSCQLG8IsKfBvQN@dpg-d50im4ngi27c73am89s0-a.singapore-postgres.render.com/caliph_namaz?sslmode=require";
+
 const pool = new pg.Pool({
-  connectionString: process.env.EXTERNAL_DATABASE_URL || process.env.DATABASE_URL,
+  connectionString: process.env.EXTERNAL_DATABASE_URL || process.env.DATABASE_URL || RENDER_DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
