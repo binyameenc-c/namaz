@@ -26,7 +26,7 @@ jobs:
       - name: Add Capacitor CLI and Core
         working-directory: Caliph-Attendance
         run: |
-          npm install --no-audit --no-fund @capacitor/cli @capacitor/core --save-dev
+          npm install --no-audit --no-fund @capacitor/cli @capacitor/core @capacitor/android --save-dev
 
       - name: Setup Java (for Gradle)
         uses: actions/setup-java@v4
@@ -42,8 +42,6 @@ jobs:
       - name: Initialize Capacitor (idempotent)
         working-directory: Caliph-Attendance
         run: |
-          npx cap init com.example.namaz Namaz --web-dir=dist/public || true
-          npx cap add android || true
           npx cap sync android
 
       - name: Build Android (Gradle)
@@ -51,6 +49,7 @@ jobs:
         env:
           JAVA_HOME: ${{ steps.setup-java.outputs.java-home }}
         run: |
+          chmod +x gradlew
           ./gradlew assembleRelease --no-daemon || ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
