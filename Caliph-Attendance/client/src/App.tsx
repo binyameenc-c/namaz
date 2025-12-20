@@ -4,24 +4,27 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import logo from '@assets/logo-social_1765305531532.png';
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
 
-// Pages
+// Eagerly load core pages
 import Home from "@/pages/Home";
 import ClassSelect from "@/pages/ClassSelect";
 import Attendance from "@/pages/Attendance";
-import Reports from "@/pages/Reports";
-import Students from "@/pages/Students";
-import Settings from "@/pages/Settings";
-import Classes from "@/pages/Classes";
+
+// Lazy load heavy pages for faster initial load
+const Reports = lazy(() => import("@/pages/Reports"));
+const Students = lazy(() => import("@/pages/Students"));
+const Settings = lazy(() => import("@/pages/Settings"));
+const Classes = lazy(() => import("@/pages/Classes"));
 
 function SplashScreen({ onComplete }: { onComplete: () => void }) {
   useEffect(() => {
-    const timer = setTimeout(onComplete, 1000);
+    // Keep splash longer on mobile to let code split chunks load
+    const timer = setTimeout(onComplete, 2000);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
@@ -52,6 +55,14 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
   );
 }
 
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600" />
+    </div>
+  );
+}
+
 function Router() {
   return (
     <Layout>
@@ -59,11 +70,31 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/select-class/:type" component={ClassSelect} />
         <Route path="/attendance/:type/:classId" component={Attendance} />
-        <Route path="/reports" component={Reports} />
-        <Route path="/summary" component={Reports} />
-        <Route path="/classes" component={Classes} />
-        <Route path="/students" component={Students} />
-        <Route path="/settings" component={Settings} />
+        <Route path="/reports">
+          <Suspense fallback={<PageLoader />}>
+            <Reports />
+          </Suspense>
+        </Route>
+        <Route path="/summary">
+          <Suspense fallback={<PageLoader />}>
+            <Reports />
+          </Suspense>
+        </Route>
+        <Route path="/classes">
+          <Suspense fallback={<PageLoader />}>
+            <Classes />
+          </Suspense>
+        </Route>
+        <Route path="/students">
+          <Suspense fallback={<PageLoader />}>
+            <Students />
+          </Suspense>
+        </Route>
+        <Route path="/settings">
+          <Suspense fallback={<PageLoader />}>
+            <Settings />
+          </Suspense>
+        </Route>
         <Route component={NotFound} />
       </Switch>
     </Layout>

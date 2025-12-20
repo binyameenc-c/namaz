@@ -39,6 +39,26 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split React and core libraries into separate chunk
+          react: ['react', 'react-dom'],
+          // Split UI library components
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs'],
+          // Chart library in separate chunk
+          charts: ['recharts'],
+        },
+      },
+    },
+    // Optimize chunk size limits
+    chunkSizeWarningLimit: 1000,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console logs in production
+      },
+    },
   },
   server: {
     host: "0.0.0.0",
