@@ -26,7 +26,7 @@ jobs:
       - name: Add Capacitor CLI and Core
         working-directory: Caliph-Attendance
         run: |
-          npm install --no-audit --no-fund @capacitor/cli @capacitor/core @capacitor/android --save-dev
+          npm install --no-audit --no-fund @capacitor/cli @capacitor/core @capacitor/android
 
       - name: Setup Java (for Gradle)
         uses: actions/setup-java@v4
