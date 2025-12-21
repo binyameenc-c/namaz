@@ -82,8 +82,7 @@ export function generatePrayerSummaryMessage(prayerType: string): string {
     year: "numeric",
   });
   
-  let message = `📿 *${prayerType}*\n`;
-  message += `📅 ${today}\n\n`;
+  let message = `${prayerType.toUpperCase()} ${today}\n\n`;
   
   const classIds = Object.keys(prayerData);
   
@@ -94,16 +93,17 @@ export function generatePrayerSummaryMessage(prayerType: string): string {
   
   classIds.forEach((classId) => {
     const classData = prayerData[classId];
+    message += `${classData.className}:\n`;
     
     if (classData.absentStudents.length === 0) {
-      message += `✅ ${classData.className}: All present\n`;
+      message += `   All present\n`;
     } else {
-      message += `📋 ${classData.className}:\n`;
       classData.absentStudents.forEach((s) => {
         const reasonText = s.reason ? ` (${s.reason})` : "";
-        message += `   ❌ ${s.rollNo}. ${s.name}${reasonText}\n`;
+        message += `   ${s.rollNo}. ${s.name}${reasonText}\n`;
       });
     }
+    message += `\n`;
   });
   
   return message.trim();
@@ -354,8 +354,7 @@ export function generateFullDailyReport(): string {
     year: "numeric",
   });
   
-  let message = `📊 *Daily Attendance Report*\n`;
-  message += `📅 ${today}\n\n`;
+  let message = `DAILY ATTENDANCE REPORT - ${today}\n\n`;
   
   const classReport: Record<string, { className: string; absentStudents: Set<string> }> = {};
   
@@ -367,19 +366,19 @@ export function generateFullDailyReport(): string {
         classReport[classId] = { className: classData.className, absentStudents: new Set<string>() };
       }
       classData.absentStudents.forEach((s) => {
-        const studentKey = `${s.rollNo}-${s.name}`;
+        const studentKey = `${s.rollNo}. ${s.name}`;
         classReport[classId].absentStudents.add(studentKey);
       });
     });
   });
   
   Object.values(classReport).forEach((cls) => {
-    message += `*${cls.className}*\n`;
+    message += `${cls.className}:\n`;
     if (cls.absentStudents.size === 0) {
-      message += `All present\n`;
+      message += `   All present\n`;
     } else {
       cls.absentStudents.forEach((studentKey) => {
-        message += `${studentKey}\n`;
+        message += `   ${studentKey}\n`;
       });
     }
     message += `\n`;
