@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Download, FileText } from "lucide-react";
+import { ArrowLeft, Download, FileText, Loader } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { getAttendanceStore } from "@/lib/attendanceStore";
-import { getClasses, getStudents } from "@/lib/mockData";
+import { api } from "@/lib/api";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 
 interface StudentData {
+  id: string;
   name: string;
   rollNo: number;
   absentCount: number;
@@ -15,55 +16,86 @@ interface StudentData {
 }
 
 interface ClassData {
+  id: string;
   name: string;
   students: StudentData[];
 }
 
 export default function StudentAnalytics() {
   const [classData, setClassData] = useState<ClassData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const store = getAttendanceStore();
-    const classes = getClasses();
-    const studentsData = getStudents();
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [classes, allStudents] = await Promise.all([
+        api.getClasses(),
+        api.getStudents(),
+      ]);
 
-    const processedClasses: ClassData[] = [];
+      const store = getAttendanceStore();
 
-    classes.forEach((cls) => {
-      const classStudents = studentsData[cls.id] || [];
-      
-      const studentList = classStudents.map((student) => {
-        let totalAbsences = 0;
-        
-        // Count absences across all prayers
-        Object.values(store).forEach((prayerData) => {
-          const classAttendance = prayerData[cls.id];
-          if (classAttendance) {
-            const isAbsent = classAttendance.absentStudents.some(
-              (s) => s.rollNo === student.rollNo
-            );
-            if (isAbsent) totalAbsences++;
-          }
+      const processedClasses: ClassData[] = classes.map((cls) => {
+        const classStudents = allStudents.filter(
+          (student) => student.classId === cls.id
+        );
+
+        const studentList = classStudents.map((student) => {
+          let totalAbsences = 0;
+
+          // Count absences across all prayers
+          Object.values(store).forEach((prayerData) => {
+            const classAttendance = prayerData[cls.id];
+            if (classAttendance) {
+              const isAbsent = classAttendance.absentStudents.some(
+                (s) => s.rollNo === student.rollNo
+              );
+              if (isAbsent) totalAbsences++;
+            }
+          });
+
+          // Calculate percentage: 100% - (5% per absence)
+          const percentage = Math.max(0, 100 - totalAbsences * 5);
+
+          return {
+            id: student.id,
+            name: student.name,
+            rollNo: student.rollNo,
+            absentCount: totalAbsences,
+            percentage,
+          };
         });
 
-        // Calculate percentage: 100% - (5% per absence)
-        const percentage = Math.max(0, 100 - totalAbsences * 5);
-
         return {
-          name: student.name,
-          rollNo: student.rollNo,
-          absentCount: totalAbsences,
-          percentage,
+          id: cls.id,
+          name: cls.name,
+          students: studentList,
         };
       });
 
-      processedClasses.push({
-        name: cls.name,
-        students: studentList,
-      });
-    });
+      setClassData(processedClasses);
+    } catch (error) {
+      console.error("Failed to load data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setClassData(processedClasses);
+  useEffect(() => {
+    loadData();
+
+    // Listen for custom events when classes or students are added
+    const handleDataChange = () => {
+      loadData();
+    };
+
+    window.addEventListener("classDataChanged", handleDataChange);
+    window.addEventListener("attendanceDataChanged", handleDataChange);
+
+    return () => {
+      window.removeEventListener("classDataChanged", handleDataChange);
+      window.removeEventListener("attendanceDataChanged", handleDataChange);
+    };
   }, []);
 
   const downloadPDF = () => {
@@ -125,22 +157,32 @@ export default function StudentAnalytics() {
     });
 
     const worksheet = XLSX.utils.json_to_sheet(data);
-    worksheet["!cols"] = [
-      { wch: 15 },
-      { wch: 25 },
-      { wch: 12 },
-    ];
+    worksheet["!cols"] = [{ wch: 15 }, { wch: 25 }, { wch: 12 }];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
     XLSX.writeFile(workbook, "attendance-report.xlsx");
   };
 
+  if (loading) {
+    return (
+      <div className="p-6 min-h-screen bg-background flex items-center justify-center pb-24">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader className="w-8 h-8 text-emerald-600 animate-spin" />
+          <p className="text-muted-foreground">Loading student data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6 min-h-screen bg-background pb-24">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4 pt-4">
-          <Link href="/summary" className="p-2 bg-secondary rounded-full hover:bg-muted transition-colors">
+          <Link
+            href="/summary"
+            className="p-2 bg-secondary rounded-full hover:bg-muted transition-colors"
+          >
             <ArrowLeft size={20} />
           </Link>
           <div>
@@ -169,58 +211,70 @@ export default function StudentAnalytics() {
       </div>
 
       {/* Class-based Student View */}
-      <div className="space-y-8">
-        {classData.map((cls) => (
-          <div key={cls.name} className="bg-card border border-border rounded-xl p-6">
-            {/* Class Header */}
-            <h2 className="text-2xl font-bold text-foreground mb-6 pb-4 border-b border-border">
-              {cls.name}
-            </h2>
+      {classData.length > 0 ? (
+        <div className="space-y-8">
+          {classData.map((cls) => (
+            <div key={cls.id} className="bg-card border border-border rounded-xl p-6">
+              {/* Class Header */}
+              <h2 className="text-2xl font-bold text-foreground mb-6 pb-4 border-b border-border">
+                {cls.name}
+              </h2>
 
-            {/* Students List */}
-            <div className="space-y-3">
-              {cls.students.map((student) => (
-                <div
-                  key={`${cls.name}-${student.rollNo}`}
-                  className={cn(
-                    "p-4 rounded-lg flex items-center justify-between border transition-all",
-                    student.percentage === 100
-                      ? "bg-emerald-50 border-emerald-200"
-                      : student.percentage >= 80
-                        ? "bg-amber-50 border-amber-200"
-                        : "bg-red-50 border-red-200"
-                  )}
-                >
-                  <div>
-                    <p className="font-medium text-foreground">
-                      {student.rollNo}. {student.name}
-                    </p>
-                  </div>
-                  <div className="text-right">
+              {/* Students List */}
+              {cls.students.length > 0 ? (
+                <div className="space-y-3">
+                  {cls.students.map((student) => (
                     <div
+                      key={student.id}
                       className={cn(
-                        "text-2xl font-bold",
+                        "p-4 rounded-lg flex items-center justify-between border transition-all",
                         student.percentage === 100
-                          ? "text-emerald-600"
+                          ? "bg-emerald-50 border-emerald-200"
                           : student.percentage >= 80
-                            ? "text-amber-600"
-                            : "text-red-600"
+                            ? "bg-amber-50 border-amber-200"
+                            : "bg-red-50 border-red-200"
                       )}
                     >
-                      {student.percentage}%
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {student.rollNo}. {student.name}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div
+                          className={cn(
+                            "text-2xl font-bold",
+                            student.percentage === 100
+                              ? "text-emerald-600"
+                              : student.percentage >= 80
+                                ? "text-amber-600"
+                                : "text-red-600"
+                          )}
+                        >
+                          {student.percentage}%
+                        </div>
+                        {student.absentCount > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            {student.absentCount} absence{student.absentCount !== 1 ? "s" : ""}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    {student.absentCount > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        {student.absentCount} absence{student.absentCount !== 1 ? "s" : ""}
-                      </p>
-                    )}
-                  </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <p className="text-sm text-muted-foreground">No students in this class.</p>
+              )}
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">
+            No classes or students found. Create classes and add students first.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
