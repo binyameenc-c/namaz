@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { getAllStudentsAttendance, getClassWideSummary } from "@/lib/attendanceStore";
 import { STUDENTS, CLASSES } from "@/lib/mockData";
 
-const TABS = ['All Students'];
+const TABS = ['All Students', 'By Class'];
 
 export default function StudentAnalytics() {
   const [activeTab, setActiveTab] = useState('All Students');
