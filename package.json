@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "build": "cd Caliph-Attendance && npm install && npm run build",
+    "start": "cd Caliph-Attendance && npm start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
