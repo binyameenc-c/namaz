@@ -63,6 +63,9 @@ export function saveClassAttendance(
   };
   
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  
+  // Dispatch custom event for attendance data changes
+  window.dispatchEvent(new CustomEvent('attendanceDataChanged', { detail: { prayerType, classId } }));
 }
 
 export function getPrayerAttendance(prayerType: string): PrayerAttendance {
@@ -128,10 +131,16 @@ export function clearPrayerAttendance(prayerType: string): void {
   const store = getAttendanceStore();
   delete store[prayerType];
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  
+  // Dispatch custom event for attendance data changes
+  window.dispatchEvent(new CustomEvent('attendanceDataChanged', { detail: { prayerType } }));
 }
 
 export function clearAllAttendance(): void {
   localStorage.removeItem(STORAGE_KEY);
+  
+  // Dispatch custom event for attendance data changes
+  window.dispatchEvent(new CustomEvent('attendanceDataChanged'));
 }
 
 export interface DailySummary {

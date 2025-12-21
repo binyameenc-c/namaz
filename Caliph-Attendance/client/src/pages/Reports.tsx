@@ -28,8 +28,8 @@ export default function Reports() {
   useEffect(() => {
     refreshData();
     
-    // Listen for storage changes (attendance data updates)
-    const handleStorageChange = () => {
+    // Listen for custom attendance data changes
+    const handleAttendanceChange = () => {
       refreshData();
     };
     
@@ -40,11 +40,11 @@ export default function Reports() {
       }
     };
     
-    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('attendanceDataChanged', handleAttendanceChange);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('attendanceDataChanged', handleAttendanceChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
