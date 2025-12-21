@@ -43,6 +43,9 @@ export function saveClassAttendance(
     store[prayerType] = {};
   }
   
+  // If attendance for this prayer and class already exists, it will be automatically replaced
+  // This ensures only the latest attendance record is kept (useful when teacher marks twice)
+  
   const absentStudents: AbsentStudent[] = students
     .filter((s) => attendance[s.id] === "absent")
     .map((s) => ({ 
@@ -53,6 +56,8 @@ export function saveClassAttendance(
   
   const presentCount = students.filter((s) => attendance[s.id] === "present").length;
   
+  // Overwrite any existing attendance for this prayer/class combination
+  // This automatically deletes the previous record
   store[prayerType][classId] = {
     classId,
     className,
