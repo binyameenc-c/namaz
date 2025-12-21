@@ -262,29 +262,29 @@ export function generateFullDailyReport(): string {
   let message = `📊 *Daily Attendance Report*\n`;
   message += `📅 ${today}\n\n`;
   
-  const classReport: Record<string, { className: string; absentStudents: AbsentStudent[] }> = {};
+  const classReport: Record<string, { className: string; absentStudents: Set<string> }> = {};
   
   prayers.forEach((prayer) => {
     const prayerStore = store[prayer] || {};
     Object.keys(prayerStore).forEach((classId) => {
       const classData = prayerStore[classId];
       if (!classReport[classId]) {
-        classReport[classId] = { className: classData.className, absentStudents: [] };
+        classReport[classId] = { className: classData.className, absentStudents: new Set<string>() };
       }
       classData.absentStudents.forEach((s) => {
-        classReport[classId].absentStudents.push(s);
+        const studentKey = `${s.rollNo}-${s.name}`;
+        classReport[classId].absentStudents.add(studentKey);
       });
     });
   });
   
   Object.values(classReport).forEach((cls) => {
     message += `*${cls.className}*\n`;
-    if (cls.absentStudents.length === 0) {
+    if (cls.absentStudents.size === 0) {
       message += `All present\n`;
     } else {
-      cls.absentStudents.forEach((s) => {
-        const reasonText = s.reason ? ` (${s.reason})` : "";
-        message += `${s.name}${reasonText}\n`;
+      cls.absentStudents.forEach((studentKey) => {
+        message += `${studentKey}\n`;
       });
     }
     message += `\n`;
