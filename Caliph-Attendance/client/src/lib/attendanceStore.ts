@@ -259,6 +259,92 @@ export function getClassSummariesByPrayer(): ClassSummaryByPrayer[] {
   }).filter(p => p.classes.length > 0);
 }
 
+// Get individual student attendance summary
+export function getStudentAttendanceSummary(studentId: string, className: string) {
+  const store = getAttendanceStore();
+  const prayers = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+  
+  const attendanceRecords: { prayer: string; date: string; status: 'present' | 'absent'; reason?: string }[] = [];
+  
+  prayers.forEach((prayer) => {
+    const prayerStore = store[prayer] || {};
+    Object.values(prayerStore).forEach((classData) => {
+      if (classData.className === className) {
+        const absStudent = classData.absentStudents.find(s => `${s.rollNo}-${s.name}` === studentId);
+        if (absStudent) {
+          attendanceRecords.push({
+            prayer,
+            date: new Date(classData.timestamp).toLocaleDateString("en-GB"),
+            status: 'absent',
+            reason: absStudent.reason
+          });
+        } else {
+          attendanceRecords.push({
+            prayer,
+            date: new Date(classData.timestamp).toLocaleDateString("en-GB"),
+            status: 'present'
+          });
+        }
+      }
+    });
+  });
+  
+  const presentCount = attendanceRecords.filter(r => r.status === 'present').length;
+  const absentCount = attendanceRecords.filter(r => r.status === 'absent').length;
+  const percentage = attendanceRecords.length > 0 ? Math.round((presentCount / attendanceRecords.length) * 100) : 0;
+  
+  return {
+    presentCount,
+    absentCount,
+    percentage,
+    records: attendanceRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  };
+}
+
+// Get all students with their attendance status - called from StudentAnalytics
+export function getAllStudentsAttendance() {
+  const store = getAttendanceStore();
+  const studentAttendance: Record<string, { name: string; rollNo: number; className: string; presentCount: number; absentCount: number; percentage: number }> = {};
+  
+  return studentAttendance;
+}
+
+// Get class-wide summary with all students
+export function getClassWideSummary(className: string) {
+  const store = getAttendanceStore();
+  const prayers = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+  
+  const prayerStore = store[prayers[0]] || {};
+  const classEntry = Object.values(prayerStore).find((c: any) => c.className === className);
+  
+  if (!classEntry) {
+    return {
+      className,
+      students: [],
+      totalPresent: 0,
+      totalAbsent: 0,
+      averagePercentage: 0
+    };
+  }
+  
+  const students = classEntry.absentStudents.map((s: any) => ({
+    id: `${s.rollNo}`,
+    name: s.name,
+    rollNo: s.rollNo,
+    presentCount: 0,
+    absentCount: 1,
+    percentage: 0
+  }));
+  
+  return {
+    className,
+    students,
+    totalPresent: 0,
+    totalAbsent: students.length,
+    averagePercentage: 0
+  };
+}
+
 export function generateFullDailyReport(): string {
   const store = getAttendanceStore();
   const prayers = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];

@@ -20,6 +20,7 @@ const Reports = lazy(() => import("@/pages/Reports"));
 const Students = lazy(() => import("@/pages/Students"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const Classes = lazy(() => import("@/pages/Classes"));
+const StudentAnalytics = lazy(() => import("@/pages/StudentAnalytics"));
 
 function SplashScreen({ onComplete }: { onComplete: () => void }) {
   useEffect(() => {
@@ -88,6 +89,11 @@ function Router() {
         <Route path="/students">
           <Suspense fallback={<PageLoader />}>
             <Students />
+          </Suspense>
+        </Route>
+        <Route path="/analytics">
+          <Suspense fallback={<PageLoader />}>
+            <StudentAnalytics />
           </Suspense>
         </Route>
         <Route path="/settings">
