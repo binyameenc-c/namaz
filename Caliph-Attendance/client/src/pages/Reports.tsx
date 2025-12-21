@@ -27,6 +27,26 @@ export default function Reports() {
 
   useEffect(() => {
     refreshData();
+    
+    // Listen for storage changes (attendance data updates)
+    const handleStorageChange = () => {
+      refreshData();
+    };
+    
+    // Listen for visibility changes - refresh when page comes into focus
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshData();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const handleDownload = () => {
