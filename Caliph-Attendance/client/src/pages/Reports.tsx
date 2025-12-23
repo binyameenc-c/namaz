@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Download, Trash2, X, Edit2, Users } from "lucide-react";
+import { Download, Trash2, X, Edit2, Users, Clock } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { getDailySummary, generateFullDailyReport, getClassSummariesByPrayer, getAttendanceStore, clearAllAttendance, clearPrayerAttendance, type DailySummary, type ClassSummaryByPrayer } from "@/lib/attendanceStore";
+import { getDailySummary, generateFullDailyReport, getClassSummariesByPrayer, getAttendanceStore, clearAllAttendance, clearPrayerAttendance, saveHistoricalAttendance, type DailySummary, type ClassSummaryByPrayer } from "@/lib/attendanceStore";
 import { jsPDF } from "jspdf";
 import { useAuth } from "@/lib/auth";
+import { api } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 const TABS = ['Daily', 'Weekly', 'Monthly'];
@@ -22,6 +23,12 @@ export default function Reports() {
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [classSummaries, setClassSummaries] = useState<ClassSummaryByPrayer[]>([]);
   const [clearPrayerDialogOpen, setClearPrayerDialogOpen] = useState(false);
+  const [forgotAttendanceOpen, setForgotAttendanceOpen] = useState(false);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [forgotDate, setForgotDate] = useState(new Date().toISOString().split('T')[0]);
+  const [forgotClass, setForgotClass] = useState('');
+  const [forgotAbsentStudents, setForgotAbsentStudents] = useState<string[]>([]);
 
   const refreshData = () => {
     setSummary(getDailySummary());
@@ -30,6 +37,7 @@ export default function Reports() {
 
   useEffect(() => {
     refreshData();
+    loadClasses();
     
     // Listen for custom attendance data changes
     const handleAttendanceChange = () => {
@@ -51,6 +59,65 @@ export default function Reports() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  const loadClasses = async () => {
+    try {
+      const classesData = await api.getClasses();
+      setClasses(classesData);
+    } catch (error) {
+      console.error('Failed to load classes:', error);
+    }
+  };
+
+  const loadStudents = async (classId: string) => {
+    try {
+      const studentsData = await api.getStudentsByClass(classId);
+      setStudents(studentsData);
+    } catch (error) {
+      console.error('Failed to load students:', error);
+    }
+  };
+
+  const handleForgotAttendance = async () => {
+    if (!forgotDate || !forgotClass || forgotAbsentStudents.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields and select at least one absent student",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const selectedClass = classes.find(c => c.id === forgotClass);
+      const allClassStudents = await api.getStudentsByClass(forgotClass);
+      
+      const attendance: Record<string, "present" | "absent"> = {};
+      allClassStudents.forEach(student => {
+        attendance[student.id] = forgotAbsentStudents.includes(student.id) ? "absent" : "present";
+      });
+
+      saveHistoricalAttendance("Missed", forgotClass, selectedClass.name, attendance, allClassStudents, new Date(forgotDate).getTime());
+      
+      setForgotAttendanceOpen(false);
+      setForgotDate(new Date().toISOString().split('T')[0]);
+      setForgotClass('');
+      setForgotAbsentStudents([]);
+      refreshData();
+
+      toast({
+        title: "Success",
+        description: "Historical attendance has been recorded",
+        className: "bg-emerald-50 border-emerald-200 text-emerald-900",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save attendance",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleDownload = () => {
     const store = getAttendanceStore();
@@ -226,7 +293,14 @@ export default function Reports() {
       {isAdmin && (
         <div className="space-y-4">
           <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Admin Controls</h3>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
+            <button 
+              onClick={() => setForgotAttendanceOpen(true)}
+              className="flex items-center justify-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-xl shadow-sm active:scale-95 transition-transform hover:bg-green-100"
+            >
+              <Clock size={16} className="text-green-600" />
+              <span className="font-medium text-sm text-green-800">Forgot Attendance</span>
+            </button>
             <button 
               onClick={() => setClearPrayerDialogOpen(true)}
               className="flex items-center justify-center space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-xl shadow-sm active:scale-95 transition-transform hover:bg-amber-100"
@@ -374,6 +448,74 @@ export default function Reports() {
           </div>
         </div>
       )}
+
+      {/* Forgot Attendance Dialog */}
+      <Dialog open={forgotAttendanceOpen} onOpenChange={setForgotAttendanceOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Record Missed Attendance</DialogTitle>
+            <DialogDescription>Add attendance for a past date</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Date</label>
+              <input
+                type="date"
+                value={forgotDate}
+                onChange={(e) => setForgotDate(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Class</label>
+              <select
+                value={forgotClass}
+                onChange={(e) => {
+                  setForgotClass(e.target.value);
+                  setForgotAbsentStudents([]);
+                  if (e.target.value) loadStudents(e.target.value);
+                }}
+                className="w-full px-3 py-2 border border-border rounded-lg"
+              >
+                <option value="">Select a class</option>
+                {classes.map(cls => (
+                  <option key={cls.id} value={cls.id}>{cls.name}</option>
+                ))}
+              </select>
+            </div>
+            {forgotClass && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Select Absent Students</label>
+                <div className="max-h-48 overflow-y-auto border border-border rounded-lg p-3 space-y-2">
+                  {students.map(student => (
+                    <label key={student.id} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={forgotAbsentStudents.includes(student.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setForgotAbsentStudents([...forgotAbsentStudents, student.id]);
+                          } else {
+                            setForgotAbsentStudents(forgotAbsentStudents.filter(id => id !== student.id));
+                          }
+                        }}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">{student.rollNo}. {student.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            <button
+              onClick={handleForgotAttendance}
+              className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+            >
+              Submit
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Clear by Prayer Dialog */}
       <Dialog open={clearPrayerDialogOpen} onOpenChange={setClearPrayerDialogOpen}>
