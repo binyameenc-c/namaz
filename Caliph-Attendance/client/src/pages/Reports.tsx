@@ -485,7 +485,7 @@ export default function Reports() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">Classes and Roll Numbers</label>
-              <p className="text-xs text-muted-foreground mb-2">Format: Class name, then roll numbers (one per line)</p>
+              <p className="text-xs text-muted-foreground mb-2">Format: Class name, OR roll numbers (one per line)</p>
               <textarea
                 value={forgotInput}
                 onChange={(e) => setForgotInput(e.target.value)}
