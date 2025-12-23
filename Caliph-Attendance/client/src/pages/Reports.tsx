@@ -28,7 +28,6 @@ export default function Reports() {
   const [forgotDate, setForgotDate] = useState(new Date().toISOString().split('T')[0]);
   const [forgotInput, setForgotInput] = useState('');
   const [allStudents, setAllStudents] = useState<any[]>([]);
-  const [forgotAbsences, setForgotAbsences] = useState<Record<string, Record<string, string[]>>>({});
 
   const refreshData = () => {
     setSummary(getDailySummary());
@@ -71,73 +70,95 @@ export default function Reports() {
     }
   };
 
-  const loadStudentsForForgotDialog = async () => {
-    try {
-      const studentsData = await api.getStudents();
-      setAllStudents(studentsData);
-      const newAbsences: Record<string, Record<string, string[]>> = {};
-      classes.forEach(cls => {
-        newAbsences[cls.id] = {};
-        PRAYERS.forEach(prayer => {
-          newAbsences[cls.id][prayer] = [];
-        });
-      });
-      setForgotAbsences(newAbsences);
-    } catch (error) {
-      console.error('Failed to load students:', error);
-    }
-  };
-
-  const toggleStudentAbsence = (classId: string, prayer: string, studentId: string) => {
-    setForgotAbsences(prev => {
-      const newAbsences = { ...prev };
-      if (!newAbsences[classId]) newAbsences[classId] = {};
-      if (!newAbsences[classId][prayer]) newAbsences[classId][prayer] = [];
-      
-      const students = newAbsences[classId][prayer];
-      if (students.includes(studentId)) {
-        newAbsences[classId][prayer] = students.filter(id => id !== studentId);
-      } else {
-        newAbsences[classId][prayer] = [...students, studentId];
-      }
-      return newAbsences;
-    });
-  };
 
   const handleForgotAttendance = async () => {
-    if (!forgotDate) {
+    if (!forgotDate || !forgotInput.trim()) {
       toast({
         title: "Error",
-        description: "Please select a date",
+        description: "Please fill in date and attendance data",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      let hasData = false;
+      const allStudents = await api.getStudents();
+      const lines = forgotInput.trim().split('\n').map(line => line.trim()).filter(line => line);
       
-      for (const classId of Object.keys(forgotAbsences)) {
-        const classData = classes.find(c => c.id === classId);
-        const classStudents = allStudents.filter((s: any) => s.classId === classId);
+      let currentClassId = '';
+      let currentPrayer = '';
+      const prayerAbsences: Record<string, Record<string, string[]>> = {};
+      
+      for (const line of lines) {
+        const parts = line.split(/\s+/);
+        const firstPart = parts[0].toUpperCase();
+        const secondPart = parts[1]?.toUpperCase();
         
-        for (const prayer of PRAYERS) {
-          const absentStudentIds = forgotAbsences[classId]?.[prayer] || [];
+        // Check if it's a CLASS PRAYER line
+        const matchedClass = classes.find(c => c.name.toUpperCase() === firstPart);
+        const matchedPrayer = PRAYERS.find(p => p.toUpperCase() === (secondPart || firstPart));
+        
+        if (matchedClass && matchedPrayer) {
+          // CLASS PRAYER format
+          currentClassId = matchedClass.id;
+          currentPrayer = matchedPrayer;
+          if (!prayerAbsences[currentClassId]) prayerAbsences[currentClassId] = {};
+          if (!prayerAbsences[currentClassId][currentPrayer]) prayerAbsences[currentClassId][currentPrayer] = [];
+        } else if (matchedPrayer && currentClassId) {
+          // Just prayer name
+          currentPrayer = matchedPrayer;
+          if (!prayerAbsences[currentClassId]) prayerAbsences[currentClassId] = {};
+          if (!prayerAbsences[currentClassId][currentPrayer]) prayerAbsences[currentClassId][currentPrayer] = [];
+        } else if (currentClassId && currentPrayer) {
+          // Student entry - could be roll number or name
+          const rollNum = Number(line);
+          let foundStudent = false;
+          
+          if (!isNaN(rollNum)) {
+            // Try as roll number
+            const student = allStudents.find(s => 
+              s.classId === currentClassId && s.rollNo === rollNum
+            );
+            if (student) {
+              prayerAbsences[currentClassId][currentPrayer].push(student.id);
+              foundStudent = true;
+            }
+          }
+          
+          if (!foundStudent) {
+            // Try as name
+            const student = allStudents.find(s => 
+              s.classId === currentClassId && s.name.toLowerCase() === line.toLowerCase()
+            );
+            if (student) {
+              prayerAbsences[currentClassId][currentPrayer].push(student.id);
+            }
+          }
+        }
+      }
+
+      let savedCount = 0;
+      for (const classId of Object.keys(prayerAbsences)) {
+        const classData = classes.find(c => c.id === classId);
+        const classStudents = allStudents.filter(s => s.classId === classId);
+        
+        for (const prayer of Object.keys(prayerAbsences[classId])) {
+          const absentStudentIds = prayerAbsences[classId][prayer];
           if (absentStudentIds.length > 0) {
-            hasData = true;
             const attendance: Record<string, "present" | "absent"> = {};
-            classStudents.forEach((student: any) => {
+            classStudents.forEach(student => {
               attendance[student.id] = absentStudentIds.includes(student.id) ? "absent" : "present";
             });
             saveHistoricalAttendance(prayer, classId, classData.name, attendance, classStudents, new Date(forgotDate).getTime());
+            savedCount++;
           }
         }
       }
       
-      if (!hasData) {
+      if (savedCount === 0) {
         toast({
           title: "Error",
-          description: "Please select at least one student absence",
+          description: "No valid attendance records found",
           variant: "destructive",
         });
         return;
@@ -145,12 +166,12 @@ export default function Reports() {
 
       setForgotAttendanceOpen(false);
       setForgotDate(new Date().toISOString().split('T')[0]);
-      setForgotAbsences({});
+      setForgotInput('');
       refreshData();
 
       toast({
         title: "Success",
-        description: "Historical attendance has been recorded",
+        description: `Historical attendance recorded for ${savedCount} prayer(s)`,
         className: "bg-emerald-50 border-emerald-200 text-emerald-900",
       });
     } catch (error) {
@@ -493,17 +514,11 @@ export default function Reports() {
       )}
 
       {/* Forgot Attendance Dialog */}
-      <Dialog 
-        open={forgotAttendanceOpen} 
-        onOpenChange={(open) => {
-          setForgotAttendanceOpen(open);
-          if (open) loadStudentsForForgotDialog();
-        }}
-      >
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <Dialog open={forgotAttendanceOpen} onOpenChange={setForgotAttendanceOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Record Missed Attendance</DialogTitle>
-            <DialogDescription>Select date and mark absent students by prayer</DialogDescription>
+            <DialogDescription>Type class, prayer, and student info</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div>
@@ -515,60 +530,20 @@ export default function Reports() {
                 className="w-full px-3 py-2 border border-border rounded-lg"
               />
             </div>
-            
-            <div className="overflow-x-auto border border-border rounded-lg">
-              <table className="w-full text-sm">
-                <thead className="bg-secondary">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-medium sticky left-0 z-10 bg-secondary">Class / Student</th>
-                    {PRAYERS.map(prayer => (
-                      <th key={prayer} className="px-3 py-2 text-center font-medium">{prayer}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {classes.map(classItem => {
-                    const classStudents = allStudents.filter((s: any) => s.classId === classItem.id);
-                    return (
-                      <tbody key={classItem.id}>
-                        <tr className="bg-slate-50 border-t-2 border-border">
-                          <td colSpan={PRAYERS.length + 1} className="px-3 py-2 font-bold text-foreground">
-                            {classItem.name}
-                          </td>
-                        </tr>
-                        {classStudents.length === 0 ? (
-                          <tr>
-                            <td colSpan={PRAYERS.length + 1} className="px-3 py-2 text-muted-foreground text-center">
-                              No students in this class
-                            </td>
-                          </tr>
-                        ) : (
-                          classStudents.map((student: any) => (
-                            <tr key={student.id} className="border-t border-border hover:bg-secondary/30">
-                              <td className="px-3 py-2 sticky left-0 z-10 bg-white hover:bg-secondary/30">
-                                <span className="font-medium">{student.name}</span>
-                                <span className="text-xs text-muted-foreground ml-2">({student.rollNo})</span>
-                              </td>
-                              {PRAYERS.map(prayer => (
-                                <td key={prayer} className="px-3 py-2 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={(forgotAbsences[classItem.id]?.[prayer] || []).includes(student.id)}
-                                    onChange={() => toggleStudentAbsence(classItem.id, prayer, student.id)}
-                                    className="w-4 h-4 cursor-pointer"
-                                  />
-                                </td>
-                              ))}
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div>
+              <label className="block text-sm font-medium mb-2">Attendance Data</label>
+              <p className="text-xs text-muted-foreground mb-2">Format: CLASS PRAYER on first line, then names or roll numbers</p>
+              <textarea
+                value={forgotInput}
+                onChange={(e) => setForgotInput(e.target.value)}
+                placeholder="S2 FAJR&#10;3&#10;5&#10;S2 DHUHR&#10;1&#10;7"
+                className="w-full px-3 py-2 border border-border rounded-lg h-48 font-mono text-sm"
+              />
+              <div className="mt-2 text-xs text-muted-foreground">
+                <p className="font-medium">Classes: {classes.map(c => c.name).join(', ')}</p>
+                <p className="font-medium">Prayers: {PRAYERS.join(', ')}</p>
+              </div>
             </div>
-
             <button
               onClick={handleForgotAttendance}
               className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
