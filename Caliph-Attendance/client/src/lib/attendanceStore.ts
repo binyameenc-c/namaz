@@ -350,6 +350,44 @@ export function getClassWideSummary(className: string) {
   };
 }
 
+export function saveHistoricalAttendance(
+  prayerType: string,
+  classId: string,
+  className: string,
+  attendance: Record<string, "present" | "absent">,
+  students: Student[],
+  customTimestamp: number
+): void {
+  const store = getAttendanceStore();
+  
+  if (!store[prayerType]) {
+    store[prayerType] = {};
+  }
+  
+  const absentStudents: AbsentStudent[] = students
+    .filter((s) => attendance[s.id] === "absent")
+    .map((s) => ({ 
+      name: s.name, 
+      rollNo: s.rollNo,
+    }));
+  
+  const presentCount = students.filter((s) => attendance[s.id] === "present").length;
+  
+  // Save with custom timestamp for historical records
+  store[prayerType][classId] = {
+    classId,
+    className,
+    totalStudents: students.length,
+    presentCount,
+    absentStudents,
+    timestamp: customTimestamp,
+  };
+  
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  
+  window.dispatchEvent(new CustomEvent('attendanceDataChanged', { detail: { prayerType, classId } }));
+}
+
 export function generateFullDailyReport(): string {
   const store = getAttendanceStore();
   const prayers = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
