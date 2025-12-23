@@ -71,7 +71,7 @@ export default function Reports() {
     if (!forgotDate || !forgotInput.trim()) {
       toast({
         title: "Error",
-        description: "Please fill in date and student names",
+        description: "Please fill in date and roll numbers",
         variant: "destructive",
       });
       return;
@@ -79,29 +79,27 @@ export default function Reports() {
 
     try {
       const allStudents = await api.getStudents();
-      const lines = forgotInput.trim().split('\n').map(line => line.trim().toUpperCase()).filter(line => line);
+      const lines = forgotInput.trim().split('\n').map(line => line.trim()).filter(line => line);
       
-      let currentClassName = '';
+      let currentClassId = '';
       const classAbsences: Record<string, string[]> = {};
       
-      // Parse input to group students by class
+      // Parse input to group students by class using roll numbers
       for (const line of lines) {
-        const matchedClass = classes.find(c => c.name.toUpperCase() === line);
+        const matchedClass = classes.find(c => c.name.toUpperCase() === line.toUpperCase());
         if (matchedClass) {
-          currentClassName = matchedClass.name;
+          currentClassId = matchedClass.id;
           if (!classAbsences[matchedClass.id]) {
             classAbsences[matchedClass.id] = [];
           }
-        } else if (currentClassName) {
-          // Find student in current class
-          const classId = classes.find(c => c.name.toUpperCase() === currentClassName)?.id;
-          if (classId) {
-            const student = allStudents.find(s => 
-              s.classId === classId && s.name.toUpperCase().includes(line)
-            );
-            if (student) {
-              classAbsences[classId].push(student.id);
-            }
+        } else if (currentClassId && !isNaN(Number(line))) {
+          // Line is a roll number - find student in current class
+          const rollNum = Number(line);
+          const student = allStudents.find(s => 
+            s.classId === currentClassId && s.rollNo === rollNum
+          );
+          if (student) {
+            classAbsences[currentClassId].push(student.id);
           }
         }
       }
@@ -486,12 +484,12 @@ export default function Reports() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Classes and Students</label>
-              <p className="text-xs text-muted-foreground mb-2">Format: Class name, then student names (one per line)</p>
+              <label className="block text-sm font-medium mb-2">Classes and Roll Numbers</label>
+              <p className="text-xs text-muted-foreground mb-2">Format: Class name, then roll numbers (one per line)</p>
               <textarea
                 value={forgotInput}
                 onChange={(e) => setForgotInput(e.target.value)}
-                placeholder="S2-B&#10;OMAR&#10;AMIR&#10;C2-B&#10;HASSAN"
+                placeholder="S2&#10;3&#10;5&#10;C2B&#10;7&#10;12"
                 className="w-full px-3 py-2 border border-border rounded-lg h-48 font-mono text-sm"
               />
               <div className="mt-2 text-xs text-muted-foreground">
